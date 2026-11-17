@@ -1,7 +1,11 @@
  import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from './src/constants/colors';
+const colors = {
+  background: '#FFFFFF',
+  primary: '#2E7D32',
+};
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
