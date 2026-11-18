@@ -104,7 +104,7 @@ export default function LoginScreen() {
           <View style={styles.prefix}><AppText style={styles.prefixText}>+{nf(880)}</AppText></View>
           <TextInput
             accessibilityLabel={t('mobileNumber')}
-            value={nf(phone)}
+            value={phone}
             onChangeText={(text) => setPhone(toAsciiDigits(text).replace(/\D/g, '').slice(0, 11))}
             keyboardType="phone-pad"
             textContentType="telephoneNumber"
