@@ -2,31 +2,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppScreen, AppText, BrandHeader, Card, DemoNotice, KanthaCard, SectionTitle } from '../../components/ui';
+import { AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader, SectionTitle } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
-import { DEMO, findDoctor } from '../../services/mock';
+import { DEMO, findDoctor, type Localized } from '../../services/mock';
 import { WEEKDAYS } from '../../utils/format';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export default function HomeScreen() {
-  const { language, t, tf, nf } = useLanguage();
+  const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
   const doctor = findDoctor(queue.doctorId);
   const weekday = WEEKDAYS[language][new Date().getDay()];
 
   return (
-    <AppScreen>
-      <BrandHeader />
+    <AppScreen
+      header={
+        <ScreenHeader brand>
+          <View style={styles.greeting}>
+            <AppText style={styles.eyebrow}>{weekday} · {t('dhaka')}</AppText>
+            <BiText text={L('greeting')} style={styles.greetingTitle} />
+            <BiText text={L('greetingSubtitle')} style={styles.subtitle} />
+          </View>
+        </ScreenHeader>
+      }
+    >
       <DemoNotice compact />
-
-      <View style={styles.greeting}>
-        <AppText style={styles.eyebrow}>{weekday} · {t('dhaka')}</AppText>
-        <AppText style={styles.greetingTitle}>{t('greeting')}</AppText>
-        <AppText style={styles.subtitle}>{t('greetingSubtitle')}</AppText>
-      </View>
 
       <Pressable
         accessibilityRole="button"
@@ -37,14 +40,14 @@ export default function HomeScreen() {
         <View style={styles.assistantIcon}><Ionicons name="sparkles" size={22} color="#D7F2E6" /></View>
         <View style={styles.assistantCopy}>
           <AppText style={styles.assistantEyebrow}>{t('aiBrand')}</AppText>
-          <AppText style={styles.assistantTitle}>{t('assistantTitle')}</AppText>
-          <AppText style={styles.assistantSubtitle}>{t('assistantDescription')}</AppText>
+          <BiText text={L('assistantTitle')} style={styles.assistantTitle} subStyle={styles.assistantSub} />
+          <BiText text={L('assistantDescription')} style={styles.assistantSubtitle} subStyle={styles.assistantSub} />
         </View>
         <Ionicons name="chevron-forward" size={24} color={colors.surface} />
       </Pressable>
 
       <View style={styles.section}>
-        <SectionTitle title={t('appointment')} action={t('preview')} />
+        <SectionTitle text={L('appointment')} action={t('preview')} />
         <KanthaCard style={styles.appointmentCard}>
           <View style={styles.appointmentTop}>
             <View style={styles.flex}>
@@ -73,19 +76,19 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionTitle title={t('quickActions')} />
+        <SectionTitle text={L('quickActions')} />
         <View style={styles.quickGrid}>
-          <QuickAction icon="medkit-outline" label={t('doctors')} color={colors.mint2} onPress={() => router.push('/(tabs)/doctors')} />
-          <QuickAction icon="medical-outline" label={t('medicine')} color={colors.yellow} onPress={() => router.push('/prescription')} />
-          <QuickAction icon="document-text-outline" label={t('reports')} color={colors.blue} onPress={() => router.push('/report')} />
-          <QuickAction icon="people-outline" label={t('family')} color={colors.pink} onPress={() => router.push('/(tabs)/profile')} />
+          <QuickAction icon="medkit-outline" label={L('doctors')} color={colors.mint2} onPress={() => router.push('/(tabs)/doctors')} />
+          <QuickAction icon="medical-outline" label={L('medicine')} color={colors.yellow} onPress={() => router.push('/prescription')} />
+          <QuickAction icon="document-text-outline" label={L('reports')} color={colors.blue} onPress={() => router.push('/report')} />
+          <QuickAction icon="people-outline" label={L('family')} color={colors.pink} onPress={() => router.push('/(tabs)/profile')} />
         </View>
       </View>
 
       <Card style={styles.reminderCard}>
         <View style={styles.reminderIcon}><Ionicons name="alarm-outline" size={22} color={colors.yellowText} /></View>
         <View style={styles.flex}>
-          <AppText style={styles.reminderTitle}>{t('reminder')}</AppText>
+          <BiText text={L('reminder')} style={styles.reminderTitle} />
           <AppText style={styles.meta}>{t('reminderMeta')}</AppText>
         </View>
         <AppText style={styles.reminderTime}>{t('reminderTime')}</AppText>
@@ -98,8 +101,8 @@ export default function HomeScreen() {
       >
         <View style={styles.sosIcon}><Ionicons name="warning" size={22} color={colors.surface} /></View>
         <View style={styles.flex}>
-          <AppText style={styles.sosTitle}>{t('sos')}</AppText>
-          <AppText style={styles.sosSubtitle}>{t('sosMeta')}</AppText>
+          <BiText text={L('sos')} style={styles.sosTitle} />
+          <BiText text={L('sosMeta')} style={styles.sosSubtitle} />
         </View>
         <Ionicons name="chevron-forward" size={22} color={colors.danger} />
       </Pressable>
@@ -109,19 +112,20 @@ export default function HomeScreen() {
 
 function QuickAction({ icon, label, color, onPress }: {
   icon: IconName;
-  label: string;
+  label: Localized;
   color: string;
   onPress: () => void;
 }) {
+  const { language } = useLanguage();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={label[language]}
       onPress={onPress}
       style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}
     >
       <View style={[styles.quickIcon, { backgroundColor: color }]}><Ionicons name={icon} size={22} color={colors.brand} /></View>
-      <AppText style={styles.quickLabel}>{label}</AppText>
+      <BiText text={label} style={styles.quickLabel} subStyle={styles.quickSub} />
     </Pressable>
   );
 }
@@ -144,6 +148,7 @@ const styles = StyleSheet.create({
   assistantEyebrow: { color: '#C6E8D9', fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
   assistantTitle: { color: colors.surface, fontSize: 18, lineHeight: 26, fontWeight: '700' },
   assistantSubtitle: { color: '#D7EEE4', fontSize: 13, lineHeight: 20 },
+  assistantSub: { color: '#B5D9C9' },
   pressed: { opacity: 0.83 },
   section: { gap: 12 },
   appointmentCard: { gap: 14 },
@@ -160,7 +165,8 @@ const styles = StyleSheet.create({
   quickGrid: { flexDirection: 'row', gap: 10 },
   quickAction: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, paddingVertical: 14, alignItems: 'center', gap: 8, borderColor: colors.border, borderWidth: 1 },
   quickIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { color: colors.text, fontSize: 12, fontWeight: '500' },
+  quickLabel: { color: colors.text, fontSize: 12, fontWeight: '500', textAlign: 'center' },
+  quickSub: { textAlign: 'center', fontSize: 10 },
   reminderCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   reminderIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.yellow, alignItems: 'center', justifyContent: 'center' },
   reminderTitle: { color: colors.text, fontSize: 14, lineHeight: 22, fontWeight: '700' },

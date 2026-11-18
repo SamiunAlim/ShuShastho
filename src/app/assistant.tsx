@@ -10,7 +10,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { ActionButton, AppScreen, AppText, BackButton, BrandHeader, Card, DemoNotice, Field, PageTitle } from '../components/ui';
+import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, Field, ScreenHeader } from '../components/ui';
 import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import { ApiError, isBackendConfigured, RiskLevel, sendSymptomMessage } from '../services/api';
@@ -40,7 +40,7 @@ const RISK_KEYS: Record<RiskLevel, TranslationKey> = {
 };
 
 export default function AssistantScreen() {
-  const { language, t } = useLanguage();
+  const { language, t, L } = useLanguage();
   const reactId = useId();
   const [conversationId, setConversationId] = useState(`triage-${reactId}`);
   const [input, setInput] = useState('');
@@ -107,18 +107,20 @@ export default function AssistantScreen() {
   }
 
   return (
-    <AppScreen scroll={false}>
+    <AppScreen
+      scroll={false}
+      header={
+        <ScreenHeader title={L('assistantTitle')} onBack={() => router.back()}>
+          <BiText text={L('assistantDescription')} style={styles.headerSubtitle} />
+        </ScreenHeader>
+      }
+    >
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={12}
       >
-        <View style={styles.header}>
-          <BackButton onPress={() => router.back()} />
-          <BrandHeader showLanguage />
-        </View>
         <View style={styles.titleWrap}>
-          <PageTitle title={t('assistantTitle')} subtitle={t('assistantDescription')} />
           <Card style={styles.disclaimer}>
             <View style={styles.disclaimerRow}>
               <Ionicons name="information-circle-outline" size={16} color={colors.yellowText} />
@@ -213,8 +215,8 @@ function ChatBubble({ message }: { message: Message }) {
 
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-  titleWrap: { paddingHorizontal: 16, gap: 12, paddingBottom: 12 },
+  headerSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  titleWrap: { paddingHorizontal: 16, paddingTop: 12, gap: 12, paddingBottom: 12 },
   disclaimer: { paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.yellow, borderColor: colors.yellow },
   disclaimerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   disclaimerText: { color: colors.yellowText, fontSize: 12, lineHeight: 18, flexShrink: 1 },

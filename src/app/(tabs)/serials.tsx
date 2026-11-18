@@ -2,17 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActionButton, AppScreen, AppText, BrandHeader, Card, DemoNotice, KanthaCard, PageTitle } from '../../components/ui';
+import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader } from '../../components/ui';
 import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
-import { DEMO, findDoctor } from '../../services/mock';
+import { DEMO, findDoctor, type Localized } from '../../services/mock';
 
 type StepState = 'done' | 'current' | 'upcoming';
 
 export default function SerialsScreen() {
-  const { language, t, tf, nf } = useLanguage();
+  const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
   const doctor = findDoctor(queue.doctorId);
   const journey = useJourney();
@@ -31,18 +31,22 @@ export default function SerialsScreen() {
   }
 
   // Booked + checked in are always done; waiting is current until the turn arrives; then consultation.
-  const steps: { label: string; state: StepState }[] = [
-    { label: t('booked'), state: 'done' },
-    { label: t('checkedIn'), state: 'done' },
-    { label: t('waitingState'), state: queue.isMyTurn ? 'done' : 'current' },
-    { label: t('consultation'), state: journey.consulted ? 'done' : queue.isMyTurn ? 'current' : 'upcoming' },
+  const steps: { label: Localized; state: StepState }[] = [
+    { label: L('booked'), state: 'done' },
+    { label: L('checkedIn'), state: 'done' },
+    { label: L('waitingState'), state: queue.isMyTurn ? 'done' : 'current' },
+    { label: L('consultation'), state: journey.consulted ? 'done' : queue.isMyTurn ? 'current' : 'upcoming' },
   ];
 
   return (
-    <AppScreen>
-      <BrandHeader />
+    <AppScreen
+      header={
+        <ScreenHeader title={L('serials')}>
+          <BiText text={L('serialsSubtitle')} style={styles.headerSubtitle} />
+        </ScreenHeader>
+      }
+    >
       <DemoNotice compact />
-      <PageTitle title={t('serials')} subtitle={t('serialsSubtitle')} />
       <KanthaCard style={styles.queueCard}>
         <View style={styles.queueHeader}>
           <View style={styles.flex}>
@@ -54,7 +58,7 @@ export default function SerialsScreen() {
             <AppText style={styles.meta}>{DEMO.hospital[language]}</AppText>
           </View>
           <View style={styles.queueNumber}>
-            <AppText style={styles.queueSmall}>{t('yourSerial')}</AppText>
+            <BiText text={L('yourSerial')} style={styles.queueSmall} subStyle={styles.centerSub} />
             <AppText style={styles.number}>#{nf(queue.serial)}</AppText>
           </View>
         </View>
@@ -78,10 +82,10 @@ export default function SerialsScreen() {
         )}
 
         <View style={styles.metrics}>
-          <Metric label={t('nowServing')} value={`#${nf(queue.nowServing)}`} />
-          <Metric label={t('ahead')} value={nf(queue.ahead)} />
+          <Metric label={L('nowServing')} value={`#${nf(queue.nowServing)}`} />
+          <Metric label={L('ahead')} value={nf(queue.ahead)} />
           <Metric
-            label={t('estimatedWait')}
+            label={L('estimatedWait')}
             value={queue.isMyTurn ? '—' : `~${tf('minutes', { n: queue.estimatedMinutes })}`}
           />
         </View>
@@ -89,7 +93,7 @@ export default function SerialsScreen() {
         <View style={styles.progress}>
           <View style={styles.progressLine} />
           {steps.map((step) => (
-            <View key={step.label} style={styles.progressStep}>
+            <View key={step.label.en} style={styles.progressStep}>
               <View
                 style={[
                   styles.progressDot,
@@ -99,38 +103,41 @@ export default function SerialsScreen() {
               >
                 {step.state === 'done' && <Ionicons name="checkmark" size={10} color={colors.surface} />}
               </View>
-              <AppText
+              <BiText
+                text={step.label}
                 style={[
                   styles.progressText,
                   step.state !== 'upcoming' && styles.progressTextActive,
                 ]}
-              >
-                {step.label}
-              </AppText>
+                subStyle={styles.progressSub}
+              />
             </View>
           ))}
         </View>
         <View style={styles.notice}><AppText style={styles.noticeText}>{t('queueEstimateNotice')}</AppText></View>
       </KanthaCard>
       <Card style={styles.infoCard}>
-        <AppText style={styles.infoTitle}>{t('checkInTitle')}</AppText>
+        <BiText text={L('checkInTitle')} style={styles.infoTitle} />
         <AppText style={styles.meta}>{t('checkInDescription')}</AppText>
       </Card>
     </AppScreen>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value }: { label: Localized; value: string }) {
   return (
     <View style={styles.metric}>
       <AppText style={styles.metricValue}>{value}</AppText>
-      <AppText style={styles.metricLabel}>{label}</AppText>
+      <BiText text={label} style={styles.metricLabel} subStyle={styles.centerSub} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  headerSubtitle: { color: colors.muted, fontSize: 13, lineHeight: 20 },
+  centerSub: { textAlign: 'center' },
+  progressSub: { fontSize: 9, lineHeight: 13 },
   queueCard: { gap: 18 },
   queueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

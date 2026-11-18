@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { ActionButton, AppScreen, AppText, BackButton, BrandHeader, Card, DemoNotice, PageTitle } from '../components/ui';
+import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, ScreenHeader } from '../components/ui';
 import { useLanguage } from '../context/LanguageContext';
 import { useQueue } from '../context/QueueContext';
 import colors from '../constants/colors';
@@ -15,7 +15,7 @@ function newIdempotencyKey() {
 
 export default function BookingScreen() {
   const { doctorId: doctorIdParam } = useLocalSearchParams<{ doctorId?: string }>();
-  const { language, t, nf } = useLanguage();
+  const { language, t, nf, L } = useLanguage();
   const queue = useQueue();
   const doctor = findDoctor(doctorIdParam);
 
@@ -61,24 +61,25 @@ export default function BookingScreen() {
   }
 
   return (
-    <AppScreen>
-      <View style={styles.header}>
-        <BackButton onPress={() => router.back()} />
-        <BrandHeader />
-      </View>
+    <AppScreen
+      header={
+        <ScreenHeader title={L('bookingTitle')} onBack={() => router.back()}>
+          <BiText text={L('bookingDisclaimer')} style={styles.headerSubtitle} />
+        </ScreenHeader>
+      }
+    >
       <DemoNotice compact />
-      <PageTitle title={t('bookingTitle')} subtitle={t('bookingDisclaimer')} />
       <Card style={styles.doctorCard}>
-        <AppText style={styles.label}>{t('selectedDoctor')}</AppText>
+        <BiText text={L('selectedDoctor')} style={styles.label} />
         <AppText style={styles.doctor}>{doctor.name[language]}</AppText>
         <AppText style={styles.meta}>{doctor.specialty[language]} · {DEMO.hospital[language]}</AppText>
         <View style={styles.feeRow}>
-          <AppText style={styles.meta}>{t('consultationFee')}</AppText>
+          <BiText text={L('consultationFee')} style={styles.meta} />
           <AppText style={styles.fee}>{nf(formatTaka(doctor.fee))}</AppText>
         </View>
       </Card>
       <View style={styles.section}>
-        <AppText style={styles.sectionTitle}>{t('chooseDay')}</AppText>
+        <BiText text={L('chooseDay')} style={styles.sectionTitle} />
         <View style={styles.dates}>
           {days.map((day) => {
             const selected = selectedDate === day.value;
@@ -97,13 +98,13 @@ export default function BookingScreen() {
         </View>
       </View>
       <Card style={styles.summary}>
-        <AppText style={styles.sectionTitle}>{t('bookingTitle')}</AppText>
+        <BiText text={L('bookingTitle')} style={styles.sectionTitle} />
         <View style={styles.summaryRow}>
-          <AppText style={styles.meta}>{t('payment')}</AppText>
+          <BiText text={L('payment')} style={styles.meta} />
           <AppText style={styles.summaryValue}>{t('cashAtChamber')}</AppText>
         </View>
         <View style={styles.summaryRow}>
-          <AppText style={styles.meta}>{t('total')}</AppText>
+          <BiText text={L('total')} style={styles.meta} />
           <AppText style={styles.fee}>{nf(formatTaka(doctor.fee))}</AppText>
         </View>
       </Card>
@@ -114,7 +115,7 @@ export default function BookingScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerSubtitle: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   doctorCard: { gap: 8 },
   label: { color: colors.muted, fontSize: 11, letterSpacing: 0.8, fontWeight: '600' },
   doctor: { color: colors.text, fontSize: 18, lineHeight: 27, fontWeight: '700' },

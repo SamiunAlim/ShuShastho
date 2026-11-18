@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppScreen, AppText, BrandHeader, Card, DemoNotice, Field, PageTitle } from '../../components/ui';
+import { AppScreen, AppText, BiText, Card, DemoNotice, Field, ScreenHeader } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 import { DEMO, doctors } from '../../services/mock';
 import { formatTaka } from '../../utils/format';
 
 export default function DoctorsScreen() {
-  const { language, t, tf, nf } = useLanguage();
+  const { language, t, tf, nf, L } = useLanguage();
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
   const visibleDoctors = doctors.filter((doctor) =>
@@ -21,10 +21,14 @@ export default function DoctorsScreen() {
   );
 
   return (
-    <AppScreen>
-      <BrandHeader />
+    <AppScreen
+      header={
+        <ScreenHeader title={L('doctors')}>
+          <BiText text={L('doctorsSubtitle')} style={styles.headerSubtitle} />
+        </ScreenHeader>
+      }
+    >
       <DemoNotice compact />
-      <PageTitle title={t('doctors')} subtitle={t('doctorsSubtitle')} />
       <Field value={search} onChangeText={setSearch} placeholder={t('searchDoctors')} />
       <View style={styles.filterRow}>
         <FilterPill label={t('availableToday')} active />
@@ -85,6 +89,7 @@ function FilterPill({ label, active = false }: { label: string; active?: boolean
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  headerSubtitle: { color: colors.muted, fontSize: 13, lineHeight: 20 },
   filterRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   filterPill: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
   filterPillActive: { backgroundColor: colors.brandSoft, borderColor: colors.brandSoft },

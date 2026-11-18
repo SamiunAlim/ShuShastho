@@ -196,8 +196,11 @@ export function LanguagePill() {
 }
 
 /** Mint header with rounded bottom corners: optional back button, title (+English line), language pill. */
-export function ScreenHeader({ title, extra, onBack, tone = 'mint', children }: {
-  title: Localized;
+export function ScreenHeader({ title, extra, onBack, tone = 'mint', brand = false, children }: {
+  /** Omit when `brand` is set. */
+  title?: Localized;
+  /** Show the logo + wordmark instead of a title (Home). The logo keeps the hidden role-switcher long-press. */
+  brand?: boolean;
   /** Extra detail appended to the small subtitle line. */
   extra?: string;
   onBack?: () => void;
@@ -205,7 +208,7 @@ export function ScreenHeader({ title, extra, onBack, tone = 'mint', children }: 
   children?: React.ReactNode;
 }) {
   const { language, t } = useLanguage();
-  const sub = [language === 'bn' ? title.en : '', extra].filter(Boolean).join(' · ');
+  const sub = [language === 'bn' ? title?.en : '', extra].filter(Boolean).join(' · ');
   const red = tone === 'red';
   return (
     <View style={[styles.screenHeader, red && styles.screenHeaderRed]}>
@@ -216,10 +219,20 @@ export function ScreenHeader({ title, extra, onBack, tone = 'mint', children }: 
             <Ionicons name="chevron-back" size={24} color={red ? colors.danger : colors.brand} />
           </Pressable>
         ) : null}
-        <View style={styles.flex}>
-          <AppText style={[styles.headerTitle, red && { color: colors.danger }]} numberOfLines={2}>{title[language]}</AppText>
-          {sub ? <AppText style={styles.headerSub} numberOfLines={1}>{sub}</AppText> : null}
-        </View>
+        {brand ? (
+          <View style={[styles.flex, styles.brand]}>
+            <Logo size={38} />
+            <View>
+              <AppText style={styles.brandName}>{language === 'bn' ? 'সুস্বাস্থ্য' : 'ShuShastho'}</AppText>
+              {language === 'bn' ? <AppText style={styles.headerSub}>ShuShastho</AppText> : null}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.flex}>
+            <AppText style={[styles.headerTitle, red && { color: colors.danger }]} numberOfLines={2}>{title?.[language]}</AppText>
+            {sub ? <AppText style={styles.headerSub} numberOfLines={1}>{sub}</AppText> : null}
+          </View>
+        )}
         <LanguagePill />
       </View>
       {children}
@@ -245,10 +258,15 @@ export function PageTitle({ title, subtitle }: { title: string; subtitle?: strin
   );
 }
 
-export function SectionTitle({ title, action }: { title: string; action?: string }) {
+export function SectionTitle({ title, text, action }: {
+  title?: string;
+  /** Bilingual title: Bangla main line + small grey English line in Bangla mode. */
+  text?: Localized;
+  action?: string;
+}) {
   return (
     <View style={styles.sectionTitle}>
-      <AppText style={styles.sectionTitleText}>{title}</AppText>
+      {text ? <BiText text={text} style={styles.sectionTitleText} /> : <AppText style={styles.sectionTitleText}>{title}</AppText>}
       {action ? <AppText style={styles.sectionAction}>{action}</AppText> : null}
     </View>
   );
