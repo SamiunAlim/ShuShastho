@@ -8,6 +8,7 @@ import colors from '../constants/colors';
 import { createAppointment, isBackendConfigured } from '../services/api';
 import { DEMO, findDoctor, mockCreateAppointment } from '../services/mock';
 import { addDays, formatTaka, MONTHS_SHORT, toIsoDate, WEEKDAYS } from '../utils/format';
+import { goBack } from '../utils/navigation';
 
 function newIdempotencyKey() {
   return `booking-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -63,7 +64,7 @@ export default function BookingScreen() {
   return (
     <AppScreen
       header={
-        <ScreenHeader title={L('bookingTitle')} onBack={() => router.back()}>
+        <ScreenHeader title={L('bookingTitle')} onBack={() => goBack('/(tabs)')}>
           <BiText text={L('bookingDisclaimer')} style={styles.headerSubtitle} />
         </ScreenHeader>
       }

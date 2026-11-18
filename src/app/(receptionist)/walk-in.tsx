@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, FONT_FAMILIES, KanthaCard, ScreenHeader } from '../../components/ui';
@@ -7,6 +6,7 @@ import colors from '../../constants/colors';
 import { useDesk } from '../../context/DeskContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { toAsciiDigits } from '../../utils/format';
+import { goBack } from '../../utils/navigation';
 
 /** Walk-in registration: issues the next serial and checks the patient in. */
 export default function WalkInScreen() {
@@ -30,13 +30,13 @@ export default function WalkInScreen() {
 
   return (
     <AppScreen
-      header={<ScreenHeader title={L('wiTitle')} onBack={() => router.back()} />}
+      header={<ScreenHeader title={L('wiTitle')} onBack={() => goBack('/(receptionist)')} />}
       contentStyle={styles.content}
       footer={
         <View style={styles.flex}>
           {issued === null
             ? <ActionButton label={t('wiIssue')} onPress={submit} />
-            : <ActionButton label={t('wiBack')} onPress={() => router.back()} />}
+            : <ActionButton label={t('wiBack')} onPress={() => goBack('/(receptionist)')} />}
         </View>
       }
     >

@@ -17,6 +17,7 @@ import { ApiError, isBackendConfigured, RiskLevel, sendSymptomMessage } from '..
 import { delay, mockAssistantReply } from '../services/mock';
 import { TranslationKey } from '../constants/i18n';
 import { call999 } from '../utils/emergency';
+import { goBack } from '../utils/navigation';
 
 // Assistant messages hold translation keys (demo) or literal text (backend), so a language
 // switch re-translates scripted replies instead of leaving stale text.
@@ -110,7 +111,7 @@ export default function AssistantScreen() {
     <AppScreen
       scroll={false}
       header={
-        <ScreenHeader title={L('assistantTitle')} onBack={() => router.back()}>
+        <ScreenHeader title={L('assistantTitle')} onBack={() => goBack('/(tabs)')}>
           <BiText text={L('assistantDescription')} style={styles.headerSubtitle} />
         </ScreenHeader>
       }

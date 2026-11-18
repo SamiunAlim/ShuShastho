@@ -9,6 +9,7 @@ import colors from '../constants/colors';
 import type { TranslationKey } from '../constants/i18n';
 import { CHECKIN, checkinSymptoms } from '../services/mock';
 import { call999 } from '../utils/emergency';
+import { goBack } from '../utils/navigation';
 
 type Mood = 'better' | 'same' | 'worse';
 
@@ -41,7 +42,7 @@ export default function CheckInScreen() {
         <ScreenHeader
           title={L('ciTitle')}
           extra={L('ciExtra', { n: CHECKIN.day, total: CHECKIN.totalDays }).en}
-          onBack={() => router.back()}
+          onBack={() => goBack('/(tabs)/records')}
         />
       }
       footer={<View style={styles.flex}><ActionButton label={t('submit')} onPress={submit} /></View>}

@@ -8,6 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import { DEMO, findDoctor, pharmacies, prescription } from '../services/mock';
 import { addDays, formatTaka, MONTHS_SHORT, toBanglaDigits } from '../utils/format';
+import { goBack } from '../utils/navigation';
 
 export default function PrescriptionScreen() {
   const { language, t, L, nf } = useLanguage();
@@ -36,7 +37,7 @@ export default function PrescriptionScreen() {
         <ScreenHeader
           title={L('rxTitle')}
           extra={`${doctor.name[language]} · ${todayLabel}`}
-          onBack={() => router.back()}
+          onBack={() => goBack('/(tabs)/records')}
         />
       }
       footer={<View style={styles.flex}><ActionButton label={t('reserveForPickup')} onPress={reserve} /></View>}

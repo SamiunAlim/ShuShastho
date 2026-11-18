@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen, AppText, BiText, Card, ScreenHeader } from '../components/ui';
@@ -7,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import { sosHospitals } from '../services/mock';
 import { call999 } from '../utils/emergency';
+import { goBack } from '../utils/navigation';
 
 const SOS_BACKGROUND = '#FFF6F7';
 
@@ -18,7 +18,7 @@ export default function EmergencyScreen() {
   return (
     <AppScreen
       backgroundColor={SOS_BACKGROUND}
-      header={<ScreenHeader tone="red" title={L('sos')} onBack={() => router.back()} />}
+      header={<ScreenHeader tone="red" title={L('sos')} onBack={() => goBack('/(tabs)')} />}
       contentStyle={styles.content}
     >
       {/* Big 999 button first. Dials immediately: no confirmation step may delay a 999 call. */}
@@ -86,7 +86,7 @@ export default function EmergencyScreen() {
         </View>
       </Card>
 
-      <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.safe}>
+      <Pressable accessibilityRole="button" onPress={() => goBack('/(tabs)')} style={styles.safe}>
         <BiText text={L('imSafe')} style={styles.safeText} subStyle={styles.safeSub} />
       </Pressable>
       <AppText style={styles.footer}>{t('noAutomaticAction')}</AppText>

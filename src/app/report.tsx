@@ -1,5 +1,4 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader } from '../components/ui';
@@ -8,6 +7,7 @@ import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import type { TranslationKey } from '../constants/i18n';
 import { report, type ReportStatus } from '../services/mock';
+import { goBack } from '../utils/navigation';
 
 const STATUS: Record<ReportStatus, { key: TranslationKey; bg: string; fg: string }> = {
   low: { key: 'statusLow', bg: colors.redSoft, fg: colors.danger },
@@ -36,7 +36,7 @@ export default function ReportScreen() {
 
   return (
     <AppScreen
-      header={<ScreenHeader title={L('reportTitle')} extra={report.lab} onBack={() => router.back()} />}
+      header={<ScreenHeader title={L('reportTitle')} extra={report.lab} onBack={() => goBack('/(tabs)/records')} />}
       footer={
         <>
           <OutlineButton label={pdfSaved ? t('pdfSaved') : t('savePdf')} icon="download-outline" onPress={() => setPdfSaved(true)} />

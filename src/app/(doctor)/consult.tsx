@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { AiSummary } from '../../components/AiSummary';
@@ -9,6 +9,7 @@ import { useDesk } from '../../context/DeskContext';
 import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { DEMO, prescription } from '../../services/mock';
+import { goBack } from '../../utils/navigation';
 
 const TEST_OPTIONS = ['CBC', 'NS1', 'Urine R/E'] as const;
 
@@ -41,7 +42,7 @@ export default function ConsultScreen() {
 
   if (!patient) {
     return (
-      <AppScreen header={<ScreenHeader title={L('csTitle')} onBack={() => router.back()} />}>
+      <AppScreen header={<ScreenHeader title={L('csTitle')} onBack={() => goBack('/(doctor)')} />}>
         <AppText style={styles.meta}>{t('csNoPatient')}</AppText>
       </AppScreen>
     );
@@ -49,12 +50,12 @@ export default function ConsultScreen() {
 
   return (
     <AppScreen
-      header={<ScreenHeader title={L('csTitle')} extra={`${patient.name[language]} · #${nf(patient.serial)}`} onBack={() => router.back()} />}
+      header={<ScreenHeader title={L('csTitle')} extra={`${patient.name[language]} · #${nf(patient.serial)}`} onBack={() => goBack('/(doctor)')} />}
       contentStyle={styles.content}
       footer={
         <View style={styles.flex}>
           {sent
-            ? <ActionButton label={t('csBackToQueue')} onPress={() => router.back()} />
+            ? <ActionButton label={t('csBackToQueue')} onPress={() => goBack('/(doctor)')} />
             : <ActionButton label={t('csSendFinish')} onPress={sendAndFinish} disabled={!hasContent} />}
         </View>
       }

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Alpana } from '../components/Alpana';
@@ -9,6 +9,7 @@ import { ROLE_META } from '../constants/roles';
 import { ROLES, Role, useAuth, VISIBLE_ROLES } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { toAsciiDigits } from '../utils/format';
+import { goBack } from '../utils/navigation';
 
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 42;
@@ -63,7 +64,7 @@ export default function OtpScreen() {
           {language === 'bn' ? (
             <AppText style={styles.sentSub}>{L('otpSentTo', { phone: maskPhone(phone) }).en} · </AppText>
           ) : null}
-          <Pressable accessibilityRole="link" onPress={() => router.back()} hitSlop={8}>
+          <Pressable accessibilityRole="link" onPress={() => goBack('/login')} hitSlop={8}>
             <AppText style={styles.change}>{t('otpChange')}</AppText>
           </Pressable>
         </View>
@@ -141,7 +142,7 @@ export default function OtpScreen() {
 function BackButtonBox() {
   return (
     <View style={styles.backBox}>
-      <BackButton onPress={() => router.back()} />
+      <BackButton onPress={() => goBack('/login')} />
     </View>
   );
 }
