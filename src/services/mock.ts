@@ -34,6 +34,35 @@ export const DEMO_STAFF = {
   phone: '1711234567',
 };
 
+/** Fictional patients in Dr. Farhana's list (front desk + doctor screens). Serial #17 is the demo patient. */
+export type DemoQueuePatient = {
+  serial: number;
+  name: Localized;
+  phone: string;
+  age: number;
+  /** AI pre-visit summary line (demo data; the real one would come from the AI service). */
+  summary: Localized;
+  checkedIn: boolean;
+};
+
+export const DEMO_QUEUE: DemoQueuePatient[] = [
+  { serial: 12, name: { en: 'Rafiq Mia', bn: 'রফিক মিয়া' }, phone: '1711000012', age: 58, checkedIn: true,
+    summary: { en: 'Blood pressure review · no new symptoms', bn: 'রক্তচাপ পর্যালোচনা · নতুন উপসর্গ নেই' } },
+  { serial: 13, name: { en: 'Sultana Begum', bn: 'সুলতানা বেগম' }, phone: '1711000013', age: 41, checkedIn: true,
+    summary: { en: 'Cough 5 days, mild fever · Low risk', bn: '৫ দিনের কাশি, হালকা জ্বর · কম ঝুঁকি' } },
+  { serial: 14, name: { en: 'Jahid Hasan', bn: 'জাহিদ হাসান' }, phone: '1711000014', age: 29, checkedIn: true,
+    summary: { en: 'Lower back pain 2 weeks · Low risk', bn: '২ সপ্তাহ ধরে কোমরে ব্যথা · কম ঝুঁকি' } },
+  { serial: 15, name: { en: 'Mitu Akter', bn: 'মিতু আক্তার' }, phone: '1711000015', age: 24, checkedIn: true,
+    summary: { en: 'Skin itching and rash · Low risk', bn: 'ত্বকে চুলকানি ও ফুসকুড়ি · কম ঝুঁকি' } },
+  { serial: 16, name: { en: 'Anwar Hossain', bn: 'আনোয়ার হোসেন' }, phone: '1711000016', age: 63, checkedIn: false,
+    summary: { en: 'Diabetes follow-up · sugar chart attached', bn: 'ডায়াবেটিস ফলো-আপ · সুগারের চার্ট সংযুক্ত' } },
+  { serial: 17, name: DEMO.patient, phone: '1711234567', age: 34, checkedIn: false,
+    summary: {
+      en: 'Fever 3 days, rash · Medium risk · consider dengue / viral fever. Suggested tests: CBC, NS1.',
+      bn: 'জ্বর ৩ দিন, র‍্যাশ · মাঝারি ঝুঁকি · ডেঙ্গু / ভাইরাল জ্বর বিবেচনা করুন। প্রস্তাবিত পরীক্ষা: সিবিসি, এনএস১।',
+    } },
+];
+
 export type DemoDoctor = {
   id: string;
   name: Localized;

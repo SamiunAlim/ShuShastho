@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { RoleSwitcher } from '../components/RoleSwitcher';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { DeskProvider } from '../context/DeskContext';
 import { LanguageProvider, useLanguage } from '../context/LanguageContext';
 import { JourneyProvider } from '../context/JourneyContext';
 import { QueueProvider } from '../context/QueueContext';
@@ -69,11 +70,13 @@ export default function RootLayout() {
   return (
     <LanguageProvider>
       <QueueProvider>
-        <JourneyProvider>
-          <AuthProvider>
-            <AppStack />
-          </AuthProvider>
-        </JourneyProvider>
+        <DeskProvider>
+          <JourneyProvider>
+            <AuthProvider>
+              <AppStack />
+            </AuthProvider>
+          </JourneyProvider>
+        </DeskProvider>
       </QueueProvider>
     </LanguageProvider>
   );

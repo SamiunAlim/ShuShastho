@@ -7,6 +7,8 @@ type QueueState = {
   nowServing: number;
   /** Bumped on every (re)booking so the timer restarts. */
   version: number;
+  /** Once a doctor calls patients themselves, the demo auto-advance timer stops. */
+  manual: boolean;
 };
 
 type QueueContextValue = QueueState & {
@@ -16,6 +18,8 @@ type QueueContextValue = QueueState & {
   isMyTurn: boolean;
   estimatedMinutes: number;
   bookSerial: (input: { doctorId: string; serial: number }) => void;
+  /** Doctor calls a specific serial: "now serving" jumps to it and the demo timer stops. */
+  callNext: (serial: number) => void;
 };
 
 const QueueContext = createContext<QueueContextValue | null>(null);
@@ -25,6 +29,7 @@ const initialState: QueueState = {
   serial: DEMO.serial,
   nowServing: DEMO.startServing,
   version: 0,
+  manual: false,
 };
 
 /**
@@ -33,7 +38,7 @@ const initialState: QueueState = {
  */
 export function QueueProvider({ children }: React.PropsWithChildren) {
   const [state, setState] = useState<QueueState>(initialState);
-  const finished = state.nowServing >= state.serial;
+  const finished = state.nowServing >= state.serial || state.manual;
 
   useEffect(() => {
     if (finished) return;
@@ -52,7 +57,12 @@ export function QueueProvider({ children }: React.PropsWithChildren) {
       serial,
       nowServing: Math.max(0, serial - gap),
       version: current.version + 1,
+      manual: false,
     }));
+  }, []);
+
+  const callNext = useCallback((serial: number) => {
+    setState((current) => ({ ...current, nowServing: serial, manual: true }));
   }, []);
 
   const value = useMemo<QueueContextValue>(() => {
@@ -63,8 +73,9 @@ export function QueueProvider({ children }: React.PropsWithChildren) {
       isMyTurn: remaining === 0,
       estimatedMinutes: remaining * DEMO.minutesPerPatient,
       bookSerial,
+      callNext,
     };
-  }, [state, bookSerial]);
+  }, [state, bookSerial, callNext]);
 
   return <QueueContext.Provider value={value}>{children}</QueueContext.Provider>;
 }
