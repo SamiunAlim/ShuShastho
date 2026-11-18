@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { AppScreen, AppText, BrandHeader, Card, DemoNotice, PageTitle } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
+import { ActionButton, AppScreen, AppText, BrandHeader, Card, DemoNotice, PageTitle } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 
 export default function ProfileScreen() {
   const { language, t, toggleLanguage } = useLanguage();
+  const { signOut } = useAuth();
   return (
     <AppScreen>
       <BrandHeader />
@@ -36,6 +38,7 @@ export default function ProfileScreen() {
         </Pressable>
         <SettingRow label={t('privacyConsent')} detail={t('manageDataAccess')} last />
       </Card>
+      <ActionButton label={t('logOut')} onPress={signOut} variant="secondary" />
       <AppText style={styles.version}>{t('appVersion')}</AppText>
     </AppScreen>
   );

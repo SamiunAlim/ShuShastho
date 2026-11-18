@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { FONT_FAMILIES } from '../../components/ui';
+import { StyleSheet, View } from 'react-native';
+import { AppText, FONT_FAMILIES } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 
@@ -16,7 +17,14 @@ const tabIcons: Record<string, { active: IconName; inactive: IconName }> = {
 };
 
 export default function PatientTabsLayout() {
-  const { t } = useLanguage();
+  const { t, L, language } = useLanguage();
+  const labelKeys = {
+    index: 'home',
+    doctors: 'doctors',
+    serials: 'serials',
+    records: 'records',
+    profile: 'profile',
+  } as const;
   const labels = {
     index: t('home'),
     doctors: t('doctors'),
@@ -32,7 +40,7 @@ export default function PatientTabsLayout() {
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          height: 66,
+          height: 72,
           paddingTop: 6,
           paddingBottom: 7,
           borderTopColor: colors.border,
@@ -50,6 +58,18 @@ export default function PatientTabsLayout() {
           );
         },
         title: labels[route.name as keyof typeof labels],
+        // Bangla mode: Bangla label + small grey English line; English mode: English only.
+        tabBarLabel: ({ focused }) => {
+          const key = labelKeys[route.name as keyof typeof labelKeys];
+          return (
+            <View style={tabStyles.label}>
+              <AppText style={[tabStyles.main, { color: focused ? colors.brand : colors.muted }]}>
+                {labels[route.name as keyof typeof labels]}
+              </AppText>
+              {language === 'bn' ? <AppText style={tabStyles.sub}>{L(key).en}</AppText> : null}
+            </View>
+          );
+        },
       })}
     >
       <Tabs.Screen name="index" />
@@ -60,3 +80,9 @@ export default function PatientTabsLayout() {
     </Tabs>
   );
 }
+
+const tabStyles = StyleSheet.create({
+  label: { alignItems: 'center' },
+  main: { fontSize: 11, lineHeight: 15, fontFamily: FONT_FAMILIES.medium },
+  sub: { fontSize: 9, lineHeight: 11, color: colors.muted },
+});

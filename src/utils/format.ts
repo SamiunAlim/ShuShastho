@@ -6,6 +6,11 @@ export function toBanglaDigits(value: string | number): string {
   return String(value).replace(/\d/g, (digit) => BN_DIGITS[Number(digit)]);
 }
 
+/** Bangla digits (০-৯) → ASCII, so numbers typed on a Bangla keyboard parse and validate. */
+export function toAsciiDigits(value: string): string {
+  return value.replace(/[০-৯]/g, (digit) => String(BN_DIGITS.indexOf(digit)));
+}
+
 export const WEEKDAYS: Record<Language, readonly string[]> = {
   en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   bn: ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'],

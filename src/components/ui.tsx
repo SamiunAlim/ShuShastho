@@ -12,7 +12,9 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useOptionalAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { Alpana } from './Alpana';
 import colors from '../constants/colors';
 import type { Localized } from '../services/mock';
 
@@ -52,6 +54,7 @@ export function AppScreen({ children, scroll = true, contentStyle, header, foote
 }) {
   return (
     <SafeAreaView style={[styles.safeArea, backgroundColor ? { backgroundColor } : null]} edges={['top']}>
+      <View style={styles.bgAlpana}><Alpana size={420} opacity={0.05} /></View>
       {header}
       {scroll ? (
         <ScrollView
@@ -116,16 +119,23 @@ export function ActionButton({ label, onPress, variant = 'primary', disabled = f
 
 /** Green rounded square + red circle (flag) + white plus. */
 export function Logo({ size = 42 }: { size?: number }) {
+  const auth = useOptionalAuth();
   const circle = size * 0.62;
   const bar = size * 0.34;
   const thick = Math.max(3, size * 0.09);
+  // Hidden demo role switcher: long-press the logo (no visual hint on purpose).
   return (
-    <View style={[styles.logo, { width: size, height: size, borderRadius: size * 0.33 }]}>
+    <Pressable
+      onLongPress={auth?.openSwitcher}
+      delayLongPress={600}
+      accessible={false}
+      style={[styles.logo, { width: size, height: size, borderRadius: size * 0.33 }]}
+    >
       <View style={{ width: circle, height: circle, borderRadius: circle / 2, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: bar, height: thick, backgroundColor: colors.surface, borderRadius: thick / 2 }} />
         <View style={{ position: 'absolute', width: thick, height: bar, backgroundColor: colors.surface, borderRadius: thick / 2 }} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -199,6 +209,7 @@ export function ScreenHeader({ title, extra, onBack, tone = 'mint', children }: 
   const red = tone === 'red';
   return (
     <View style={[styles.screenHeader, red && styles.screenHeaderRed]}>
+      <Alpana size={170} opacity={0.12} color={red ? colors.danger : colors.brand} style={styles.headerAlpana} />
       <View style={styles.screenHeaderRow}>
         {onBack ? (
           <Pressable accessibilityRole="button" accessibilityLabel={t('goBack')} onPress={onBack} hitSlop={8} style={styles.headerBack}>
@@ -282,13 +293,15 @@ const styles = StyleSheet.create({
   pillHalfActive: { backgroundColor: colors.brand },
   pillText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   pillTextActive: { color: colors.surface },
-  screenHeader: { backgroundColor: colors.mint2, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 12 },
+  headerAlpana: { position: 'absolute', top: -46, right: -40 },
+  bgAlpana: { position: 'absolute', bottom: -130, left: -130 },
+  screenHeader: { overflow: 'hidden', backgroundColor: colors.mint2, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 12 },
   screenHeaderRed: { backgroundColor: colors.redSoft },
   screenHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerBack: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: colors.brand, fontSize: 19, lineHeight: 27, fontWeight: '700' },
   headerSub: { color: colors.muted, fontSize: 11, lineHeight: 16 },
-  safeArea: { flex: 1, backgroundColor: colors.canvas },
+  safeArea: { flex: 1, backgroundColor: colors.canvas, overflow: 'hidden' },
   screenContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 28, gap: 18 },
   card: {
     backgroundColor: colors.surface,

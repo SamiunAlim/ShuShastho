@@ -11,6 +11,8 @@ type LanguageContextValue = {
   /** False until the saved language choice has been read (avoids a flash of the wrong language). */
   ready: boolean;
   toggleLanguage: () => void;
+  /** Pick a specific language (splash screen) and remember it. */
+  setLanguage: (language: Language) => void;
   t: (key: TranslationKey) => string;
   /** Translate and fill `{n}`-style placeholders. */
   tf: (key: TranslationKey, vars: Record<string, string | number>) => string;
@@ -26,14 +28,14 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: React.PropsWithChildren) {
-  const [language, setLanguage] = useState<Language>('bn');
+  const [language, setLanguageState] = useState<Language>('bn');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let active = true;
     AsyncStorage.getItem(STORAGE_KEY)
       .then((saved) => {
-        if (active && (saved === 'en' || saved === 'bn')) setLanguage(saved);
+        if (active && (saved === 'en' || saved === 'bn')) setLanguageState(saved);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -44,8 +46,13 @@ export function LanguageProvider({ children }: React.PropsWithChildren) {
     };
   }, []);
 
+  const setLanguage = useCallback((next: Language) => {
+    setLanguageState(next);
+    AsyncStorage.setItem(STORAGE_KEY, next).catch(() => undefined);
+  }, []);
+
   const toggleLanguage = useCallback(() => {
-    setLanguage((current) => {
+    setLanguageState((current) => {
       const next: Language = current === 'en' ? 'bn' : 'en';
       AsyncStorage.setItem(STORAGE_KEY, next).catch(() => undefined);
       return next;
@@ -70,12 +77,13 @@ export function LanguageProvider({ children }: React.PropsWithChildren) {
         bn: fill(messages.bn[key], 'bn', vars),
       }),
       toggleLanguage,
+      setLanguage,
       t,
       nf,
       tf: (key, vars) =>
         t(key).replace(/\{(\w+)\}/g, (_, name: string) => (name in vars ? nf(vars[name]) : `{${name}}`)),
     };
-  }, [language, ready, toggleLanguage]);
+  }, [language, ready, toggleLanguage, setLanguage]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }

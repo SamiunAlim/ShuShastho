@@ -25,6 +25,15 @@ export const DEMO = {
   consultationMs: 2500,
 };
 
+/** Fictional staff accounts for the demo role switcher / mock login. */
+export const DEMO_STAFF = {
+  doctor: { en: 'Dr. Farhana Ahmed', bn: 'ডা. ফারহানা আহমেদ' } satisfies Localized,
+  receptionist: { en: 'Nasrin Akter', bn: 'নাসরিন আক্তার' } satisfies Localized,
+  pharmacist: { en: 'Kamal Hossain', bn: 'কামাল হোসেন' } satisfies Localized,
+  /** Number prefilled on the login screen so the demo can proceed with one tap. */
+  phone: '1711234567',
+};
+
 export type DemoDoctor = {
   id: string;
   name: Localized;
