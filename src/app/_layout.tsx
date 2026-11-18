@@ -51,6 +51,12 @@ function AppStack() {
         <Stack.Protected guard={role === 'pharmacist'}>
           <Stack.Screen name="(pharmacist)" />
         </Stack.Protected>
+        <Stack.Protected guard={role === 'hospitalAdmin'}>
+          <Stack.Screen name="(hospital-admin)" />
+        </Stack.Protected>
+        <Stack.Protected guard={role === 'superAdmin'}>
+          <Stack.Screen name="(super-admin)" />
+        </Stack.Protected>
       </Stack>
       <RoleSwitcher />
     </>

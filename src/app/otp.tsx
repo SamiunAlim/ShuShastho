@@ -6,7 +6,7 @@ import { Alpana } from '../components/Alpana';
 import { ActionButton, AppScreen, AppText, BackButton, BiText, FONT_FAMILIES, KanthaCard, LanguagePill } from '../components/ui';
 import colors from '../constants/colors';
 import { ROLE_META } from '../constants/roles';
-import { ROLES, Role, useAuth } from '../context/AuthContext';
+import { ROLES, Role, useAuth, VISIBLE_ROLES } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { toAsciiDigits } from '../utils/format';
 
@@ -122,7 +122,7 @@ export default function OtpScreen() {
       <KanthaCard style={styles.afterCard}>
         <BiText text={L('afterVerifying')} style={styles.afterTitle} subStyle={styles.afterSub} />
         <View style={styles.afterList}>
-          {ROLES.map((key) => (
+          {VISIBLE_ROLES.map((key) => (
             <View key={key} style={styles.afterRow}>
               <View style={[styles.rolePill, key === role && styles.rolePillActive]}>
                 <AppText style={[styles.rolePillText, key === role && styles.rolePillTextActive]}>{t(ROLE_META[key].label)}</AppText>

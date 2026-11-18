@@ -3,7 +3,7 @@ import React from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import colors from '../constants/colors';
 import { ROLE_META } from '../constants/roles';
-import { ROLES, useAuth } from '../context/AuthContext';
+import { useAuth, VISIBLE_ROLES } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { ActionButton, AppText, BiText } from './ui';
 
@@ -23,7 +23,7 @@ export function RoleSwitcher() {
           <AppText style={styles.title}>{t('demoRoleTitle')}</AppText>
           <AppText style={styles.subtitle}>{t('demoRoleSubtitle')}</AppText>
           <View style={styles.list}>
-            {ROLES.map((role) => {
+            {VISIBLE_ROLES.map((role) => {
               const meta = ROLE_META[role];
               const current = session?.role === role;
               return (

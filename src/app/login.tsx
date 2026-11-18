@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
   tabSub: { fontSize: 10, lineHeight: 14 },
   block: { gap: 8 },
   label: { color: colors.text, fontSize: 13, lineHeight: 20, fontWeight: '700' },
-  roleRow: { flexDirection: 'row', gap: 8 },
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   roleChip: {
-    flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+    flexGrow: 1, flexBasis: '30%', minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 6,
   },
   roleChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },

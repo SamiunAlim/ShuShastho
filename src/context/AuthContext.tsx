@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DEMO, DEMO_STAFF, Localized } from '../services/mock';
 
@@ -6,9 +7,13 @@ import { DEMO, DEMO_STAFF, Localized } from '../services/mock';
  * Mock authentication (frontend-only demo): any phone number + any 6-digit code signs in.
  * With a real backend, signIn() would exchange the OTP for a token via src/services/api.ts.
  */
-export type Role = 'patient' | 'doctor' | 'receptionist' | 'pharmacist';
+export type Role = 'patient' | 'doctor' | 'receptionist' | 'pharmacist' | 'hospitalAdmin' | 'superAdmin';
 
-export const ROLES: readonly Role[] = ['patient', 'doctor', 'receptionist', 'pharmacist'];
+export const ROLES: readonly Role[] = ['patient', 'doctor', 'receptionist', 'pharmacist', 'hospitalAdmin', 'superAdmin'];
+
+/** Admin dashboards are laid out for wide screens, so they are only offered on web. */
+export const WEB_ONLY_ROLES: readonly Role[] = ['hospitalAdmin', 'superAdmin'];
+export const VISIBLE_ROLES: readonly Role[] = ROLES.filter((role) => Platform.OS === 'web' || !WEB_ONLY_ROLES.includes(role));
 
 export type Profile = {
   name: string;

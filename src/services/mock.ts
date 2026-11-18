@@ -30,9 +30,22 @@ export const DEMO_STAFF = {
   doctor: { en: 'Dr. Farhana Ahmed', bn: 'ডা. ফারহানা আহমেদ' } satisfies Localized,
   receptionist: { en: 'Nasrin Akter', bn: 'নাসরিন আক্তার' } satisfies Localized,
   pharmacist: { en: 'Kamal Hossain', bn: 'কামাল হোসেন' } satisfies Localized,
+  hospitalAdmin: { en: 'Tanvir Rahman', bn: 'তানভীর রহমান' } satisfies Localized,
+  superAdmin: { en: 'Sabrina Chowdhury', bn: 'সাবরিনা চৌধুরী' } satisfies Localized,
   /** Number prefilled on the login screen so the demo can proceed with one tap. */
   phone: '1711234567',
 };
+
+/** Fictional hospitals and platform figures for the super-admin dashboard (web). */
+export type DemoHospital = { id: string; name: Localized; doctors: number; patientsToday: number; approved: boolean };
+
+export const HOSPITALS: DemoHospital[] = [
+  { id: 'dhaka-medicare', name: DEMO.hospital, doctors: 4, patientsToday: 63, approved: true },
+  { id: 'city-care', name: { en: 'City Care General Hospital, Mirpur', bn: 'সিটি কেয়ার জেনারেল হাসপাতাল, মিরপুর' }, doctors: 6, patientsToday: 91, approved: true },
+  { id: 'lakeside', name: { en: 'Lakeside Clinic, Chattogram', bn: 'লেকসাইড ক্লিনিক, চট্টগ্রাম' }, doctors: 2, patientsToday: 0, approved: false },
+];
+
+export const PLATFORM = { patients: 12480, aiChatsToday: 342 };
 
 /** Fictional patients in Dr. Farhana's list (front desk + doctor screens). Serial #17 is the demo patient. */
 export type DemoQueuePatient = {
