@@ -1,15 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { AppText } from '../../components/ui';
+import { FONT_FAMILIES } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 
-const tabSymbols: Record<string, string> = {
-  index: '⌂',
-  doctors: '✚',
-  serials: '▤',
-  records: '▣',
-  profile: '◉',
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const tabIcons: Record<string, { active: IconName; inactive: IconName }> = {
+  index: { active: 'home', inactive: 'home-outline' },
+  doctors: { active: 'medkit', inactive: 'medkit-outline' },
+  serials: { active: 'ticket', inactive: 'ticket-outline' },
+  records: { active: 'document-text', inactive: 'document-text-outline' },
+  profile: { active: 'person', inactive: 'person-outline' },
 };
 
 export default function PatientTabsLayout() {
@@ -35,12 +38,17 @@ export default function PatientTabsLayout() {
           borderTopColor: colors.border,
           backgroundColor: colors.surface,
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
-        tabBarIcon: ({ color }) => (
-          <AppText style={{ color, fontSize: 21, lineHeight: 24 }}>
-            {tabSymbols[route.name] ?? '•'}
-          </AppText>
-        ),
+        tabBarLabelStyle: { fontSize: 11, fontFamily: FONT_FAMILIES.medium },
+        tabBarIcon: ({ focused }) => {
+          const icons = tabIcons[route.name];
+          return (
+            <Ionicons
+              name={focused ? icons.active : icons.inactive}
+              size={22}
+              color={focused ? colors.brand : colors.muted}
+            />
+          );
+        },
         title: labels[route.name as keyof typeof labels],
       })}
     >

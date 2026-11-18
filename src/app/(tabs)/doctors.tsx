@@ -1,54 +1,68 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen, AppText, BrandHeader, Card, DemoNotice, Field, PageTitle } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
-
-const doctors = [
-  { id: 'doctor-samira', name: 'Dr. Samira Hossain', specialty: 'Medicine Specialist', degrees: 'MBBS, FCPS (Medicine)', rating: '4.9', fee: '৳ 800', time: '10:30 AM · 2 slots' },
-  { id: 'doctor-farhan', name: 'Dr. Farhan Ahmed', specialty: 'Cardiology', degrees: 'MBBS, MD (Cardiology)', rating: '4.8', fee: '৳ 1,000', time: '12:00 PM · 4 slots' },
-];
+import { DEMO, doctors } from '../../services/mock';
+import { formatTaka } from '../../utils/format';
 
 export default function DoctorsScreen() {
-  const { t } = useLanguage();
+  const { language, t, tf, nf } = useLanguage();
   const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
   const visibleDoctors = doctors.filter((doctor) =>
-    `${doctor.name} ${doctor.specialty} ${doctor.degrees}`.toLowerCase().includes(search.toLowerCase()),
+    [doctor.name, doctor.specialty, doctor.degrees, DEMO.hospital]
+      .flatMap((text) => [text.en, text.bn])
+      .join(' ')
+      .toLowerCase()
+      .includes(query),
   );
 
   return (
     <AppScreen>
       <BrandHeader />
       <DemoNotice compact />
-      <PageTitle title={t('doctors')} subtitle="Find verified care near you" />
+      <PageTitle title={t('doctors')} subtitle={t('doctorsSubtitle')} />
       <Field value={search} onChangeText={setSearch} placeholder={t('searchDoctors')} />
       <View style={styles.filterRow}>
         <FilterPill label={t('availableToday')} active />
         <FilterPill label={t('doctorFilters')} />
         <FilterPill label={t('femaleDoctors')} />
       </View>
-      <AppText style={styles.results}>{visibleDoctors.length} doctors · Dhaka</AppText>
+      <AppText style={styles.results}>{tf('doctorsCount', { n: visibleDoctors.length })}</AppText>
       {visibleDoctors.map((doctor) => (
         <Card key={doctor.id} style={styles.doctorCard}>
           <View style={styles.doctorTop}>
-            <View style={styles.avatar}><AppText style={styles.avatarText}>{doctor.name.split(' ')[1]?.[0]}{doctor.name.split(' ')[2]?.[0]}</AppText></View>
-            <View style={{ flex: 1 }}>
-              <AppText style={styles.doctorName}>{doctor.name}</AppText>
-              <AppText style={styles.specialty}>{doctor.specialty}</AppText>
+            <View style={styles.avatar}><AppText style={styles.avatarText}>{doctor.initials[language]}</AppText></View>
+            <View style={styles.flex}>
+              <AppText style={styles.doctorName}>{doctor.name[language]}</AppText>
+              <AppText style={styles.specialty}>{doctor.specialty[language]}</AppText>
             </View>
-            <View style={styles.rating}><AppText style={styles.ratingText}>★ {doctor.rating}</AppText></View>
+            <View style={styles.rating}>
+              <Ionicons name="star" size={12} color={colors.yellowText} />
+              <AppText style={styles.ratingText}>{nf(doctor.rating.toFixed(1))}</AppText>
+            </View>
           </View>
-          <AppText style={styles.degrees}>{doctor.degrees}</AppText>
+          <AppText style={styles.degrees}>{doctor.degrees[language]}</AppText>
           <View style={styles.details}>
-            <AppText style={styles.detailText}>⌖  Dhaka Medical Centre, Dhanmondi</AppText>
-            <AppText style={styles.detailText}>◷  {doctor.time}</AppText>
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={15} color={colors.muted} />
+              <AppText style={styles.detailText}>{DEMO.hospital[language]}</AppText>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="time-outline" size={15} color={colors.muted} />
+              <AppText style={styles.detailText}>{doctor.nextSlot[language]} · {tf('slotsCount', { n: doctor.slots })}</AppText>
+            </View>
           </View>
           <View style={styles.footer}>
-            <AppText style={styles.fee}>{doctor.fee} <AppText style={styles.feeCaption}>consultation</AppText></AppText>
+            <AppText style={styles.fee}>
+              {nf(formatTaka(doctor.fee))} <AppText style={styles.feeCaption}>{t('consultationCaption')}</AppText>
+            </AppText>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/booking', params: { doctorId: doctor.id, doctorName: doctor.name } })}
+              onPress={() => router.push({ pathname: '/booking', params: { doctorId: doctor.id } })}
               style={styles.bookButton}
             >
               <AppText style={styles.bookText}>{t('book')}</AppText>
@@ -70,27 +84,29 @@ function FilterPill({ label, active = false }: { label: string; active?: boolean
 }
 
 const styles = StyleSheet.create({
-  filterRow: { flexDirection: 'row', gap: 8 },
-  filterPill: { paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.border },
+  flex: { flex: 1 },
+  filterRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  filterPill: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
   filterPillActive: { backgroundColor: colors.brandSoft, borderColor: colors.brandSoft },
-  filterText: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  filterText: { color: colors.muted, fontSize: 12, fontWeight: '500' },
   filterTextActive: { color: colors.brand },
-  results: { color: colors.muted, fontSize: 12, marginTop: -8 },
-  doctorCard: { gap: 13 },
+  results: { color: colors.muted, fontSize: 13, marginTop: -6 },
+  doctorCard: { gap: 12 },
   doctorTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  avatar: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#E7F2ED', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
-  doctorName: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  specialty: { color: colors.brand, fontSize: 12 },
-  rating: { backgroundColor: '#FFF6E5', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
-  ratingText: { color: '#A77925', fontSize: 11, fontWeight: '700' },
-  degrees: { color: colors.muted, fontSize: 12 },
-  details: { gap: 7, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 11 },
-  detailText: { color: colors.text, fontSize: 11 },
+  avatar: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.mint2, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.brand, fontSize: 16, fontWeight: '700' },
+  doctorName: { color: colors.text, fontSize: 15, lineHeight: 23, fontWeight: '700' },
+  specialty: { color: colors.brand, fontSize: 13, lineHeight: 20 },
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.yellow, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  ratingText: { color: colors.yellowText, fontSize: 12, fontWeight: '700' },
+  degrees: { color: colors.muted, fontSize: 12, lineHeight: 19 },
+  details: { gap: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 11 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailText: { color: colors.text, fontSize: 12, lineHeight: 19, flexShrink: 1 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  fee: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  feeCaption: { color: colors.muted, fontSize: 10, fontWeight: '400' },
-  bookButton: { backgroundColor: colors.brand, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10 },
-  bookText: { color: colors.surface, fontSize: 11, fontWeight: '700' },
+  fee: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  feeCaption: { color: colors.muted, fontSize: 11, fontWeight: '400' },
+  bookButton: { backgroundColor: colors.brand, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  bookText: { color: colors.surface, fontSize: 13, fontWeight: '700' },
   empty: { color: colors.muted, textAlign: 'center', padding: 22 },
 });

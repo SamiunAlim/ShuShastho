@@ -1,36 +1,61 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { ActionButton, AppScreen, AppText, BrandHeader, Card, DemoNotice, PageTitle } from '../components/ui';
+import { ActionButton, AppScreen, AppText, BackButton, BrandHeader, Card, DemoNotice, PageTitle } from '../components/ui';
 import { useLanguage } from '../context/LanguageContext';
+import { useQueue } from '../context/QueueContext';
 import colors from '../constants/colors';
-import { createAppointment } from '../services/api';
+import { createAppointment, isBackendConfigured } from '../services/api';
+import { DEMO, findDoctor, mockCreateAppointment } from '../services/mock';
+import { addDays, formatTaka, MONTHS_SHORT, toIsoDate, WEEKDAYS } from '../utils/format';
+
+function newIdempotencyKey() {
+  return `booking-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 export default function BookingScreen() {
-  const { doctorId, doctorName } = useLocalSearchParams<{ doctorId: string; doctorName: string }>();
-  const { t } = useLanguage();
-  const [selectedDate, setSelectedDate] = useState('2026-11-17');
+  const { doctorId: doctorIdParam } = useLocalSearchParams<{ doctorId?: string }>();
+  const { language, t, nf } = useLanguage();
+  const queue = useQueue();
+  const doctor = findDoctor(doctorIdParam);
+
+  // Today / tomorrow / day after, computed from the current date.
+  const days = useMemo(() => {
+    const today = new Date();
+    return [0, 1, 2].map((offset) => {
+      const date = addDays(today, offset);
+      return { value: toIsoDate(date), offset, weekday: date.getDay(), day: date.getDate(), month: date.getMonth() };
+    });
+  }, []);
+
+  const [selectedDate, setSelectedDate] = useState(days[0].value);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [confirmation, setConfirmation] = useState('');
+
+  function dayLabel(day: (typeof days)[number]) {
+    const name = day.offset === 0 ? t('today') : day.offset === 1 ? t('tomorrow') : WEEKDAYS[language][day.weekday];
+    return `${name} · ${nf(day.day)} ${MONTHS_SHORT[language][day.month]}`;
+  }
 
   async function confirmBooking() {
-    if (!doctorId || submitting) return;
+    if (submitting) return;
     setError('');
     setSubmitting(true);
     try {
-      const result = await createAppointment({
-        doctorId,
-        chamberId: 'dhaka-medical-centre-dhanmondi',
+      const input = {
+        doctorId: doctor.id,
+        chamberId: DEMO.chamberId,
         date: selectedDate,
-        paymentMethod: 'cash_at_chamber',
-        idempotencyKey: `booking-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      });
-      setConfirmation(`Serial ${result.serialNumber} · ${result.estimatedTime}`);
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : t('backendRequired');
-      setError(message.includes('not configured') ? t('backendRequired') : message);
-    } finally {
+        paymentMethod: 'cash_at_chamber' as const,
+        idempotencyKey: newIdempotencyKey(),
+      };
+      // Demo mode (no EXPO_PUBLIC_API_URL) uses the mock; otherwise the real API.
+      const result = isBackendConfigured() ? await createAppointment(input) : await mockCreateAppointment(input);
+      const serial = Number.parseInt(result.serialNumber, 10);
+      queue.bookSerial({ doctorId: doctor.id, serial: Number.isFinite(serial) ? serial : DEMO.serial });
+      router.replace('/(tabs)/serials');
+    } catch {
+      setError(t('connectionError'));
       setSubmitting(false);
     }
   }
@@ -38,64 +63,74 @@ export default function BookingScreen() {
   return (
     <AppScreen>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()}><AppText style={styles.back}>‹</AppText></Pressable>
+        <BackButton onPress={() => router.back()} />
         <BrandHeader />
       </View>
       <DemoNotice compact />
       <PageTitle title={t('bookingTitle')} subtitle={t('bookingDisclaimer')} />
       <Card style={styles.doctorCard}>
         <AppText style={styles.label}>{t('selectedDoctor')}</AppText>
-        <AppText style={styles.doctor}>{doctorName ?? t('selectDoctor')}</AppText>
-        <AppText style={styles.meta}>Medicine Specialist · Dhaka Medical Centre</AppText>
-        <View style={styles.feeRow}><AppText style={styles.meta}>{t('consultationFee')}</AppText><AppText style={styles.fee}>৳ 800</AppText></View>
+        <AppText style={styles.doctor}>{doctor.name[language]}</AppText>
+        <AppText style={styles.meta}>{doctor.specialty[language]} · {DEMO.hospital[language]}</AppText>
+        <View style={styles.feeRow}>
+          <AppText style={styles.meta}>{t('consultationFee')}</AppText>
+          <AppText style={styles.fee}>{nf(formatTaka(doctor.fee))}</AppText>
+        </View>
       </Card>
       <View style={styles.section}>
         <AppText style={styles.sectionTitle}>{t('chooseDay')}</AppText>
         <View style={styles.dates}>
-          {[
-            { value: '2026-11-17', label: `${t('today')} · 17 Nov` },
-            { value: '2026-11-18', label: `${t('tomorrow')} · 18 Nov` },
-            { value: '2026-11-19', label: `${t('thursday')} · 19 Nov` },
-          ].map(({ value, label }) => (
-            <Pressable key={value} onPress={() => setSelectedDate(value)} style={[styles.date, selectedDate === value && styles.selectedDate]}>
-              <AppText style={[styles.dateText, selectedDate === value && styles.selectedDateText]}>{label}</AppText>
-            </Pressable>
-          ))}
+          {days.map((day) => {
+            const selected = selectedDate === day.value;
+            return (
+              <Pressable
+                key={day.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setSelectedDate(day.value)}
+                style={[styles.date, selected && styles.selectedDate]}
+              >
+                <AppText style={[styles.dateText, selected && styles.selectedDateText]}>{dayLabel(day)}</AppText>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
       <Card style={styles.summary}>
         <AppText style={styles.sectionTitle}>{t('bookingTitle')}</AppText>
-        <View style={styles.summaryRow}><AppText style={styles.meta}>{t('payment')}</AppText><AppText style={styles.summaryValue}>{t('cashAtChamber')}</AppText></View>
-        <View style={styles.summaryRow}><AppText style={styles.meta}>{t('total')}</AppText><AppText style={styles.fee}>৳ 800</AppText></View>
+        <View style={styles.summaryRow}>
+          <AppText style={styles.meta}>{t('payment')}</AppText>
+          <AppText style={styles.summaryValue}>{t('cashAtChamber')}</AppText>
+        </View>
+        <View style={styles.summaryRow}>
+          <AppText style={styles.meta}>{t('total')}</AppText>
+          <AppText style={styles.fee}>{nf(formatTaka(doctor.fee))}</AppText>
+        </View>
       </Card>
-      {confirmation ? <Card style={styles.successCard}><AppText style={styles.successText}>{confirmation}</AppText></Card> : null}
       {error ? <Card style={styles.errorCard}><AppText style={styles.errorText}>{error}</AppText></Card> : null}
-      <ActionButton label={submitting ? '…' : t('confirmBooking')} onPress={confirmBooking} disabled={submitting || !doctorId || Boolean(confirmation)} />
+      <ActionButton label={submitting ? '…' : t('confirmBooking')} onPress={confirmBooking} disabled={submitting} />
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  back: { color: colors.brand, fontSize: 32, paddingRight: 4 },
-  doctorCard: { gap: 9 },
-  label: { color: colors.muted, fontSize: 9, letterSpacing: 1, fontWeight: '700' },
-  doctor: { color: colors.text, fontSize: 17, fontWeight: '700' },
-  meta: { color: colors.muted, fontSize: 12 },
+  doctorCard: { gap: 8 },
+  label: { color: colors.muted, fontSize: 11, letterSpacing: 0.8, fontWeight: '600' },
+  doctor: { color: colors.text, fontSize: 18, lineHeight: 27, fontWeight: '700' },
+  meta: { color: colors.muted, fontSize: 13, lineHeight: 20 },
   feeRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, marginTop: 2, flexDirection: 'row', justifyContent: 'space-between' },
-  fee: { color: colors.brand, fontSize: 16, fontWeight: '700' },
+  fee: { color: colors.brand, fontSize: 17, fontWeight: '700' },
   section: { gap: 12 },
-  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  sectionTitle: { color: colors.text, fontSize: 16, lineHeight: 24, fontWeight: '700' },
   dates: { gap: 8 },
-  date: { borderColor: colors.border, borderWidth: 1, borderRadius: 13, backgroundColor: colors.surface, padding: 13 },
+  date: { borderColor: colors.border, borderWidth: 1, borderRadius: 12, backgroundColor: colors.surface, padding: 14 },
   selectedDate: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
-  dateText: { color: colors.text, fontSize: 12, fontWeight: '600' },
-  selectedDateText: { color: colors.brand },
-  summary: { gap: 13 },
+  dateText: { color: colors.text, fontSize: 14, fontWeight: '500' },
+  selectedDateText: { color: colors.brand, fontWeight: '700' },
+  summary: { gap: 12 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryValue: { color: colors.text, fontSize: 12, fontWeight: '600' },
-  successCard: { backgroundColor: colors.brandSoft },
-  successText: { color: colors.brand, fontWeight: '700' },
-  errorCard: { backgroundColor: '#FFF7E7' },
-  errorText: { color: '#765718', fontSize: 12, lineHeight: 18 },
+  summaryValue: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  errorCard: { backgroundColor: colors.yellow, borderColor: colors.yellow },
+  errorText: { color: colors.yellowText, fontSize: 13, lineHeight: 20 },
 });
