@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppScreen, AppText, BiText, DemoNotice, KanthaCard, ScreenHeader } from '../../components/ui';
-import { useJourney } from '../../context/JourneyContext';
+import { type PharmacyStatus, useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 import type { TranslationKey } from '../../constants/i18n';
@@ -37,6 +37,20 @@ const FILTERS: { id: Filter; key: TranslationKey }[] = [
   { id: 'medicines', key: 'medicines' },
 ];
 
+const PHARMACY_TAG_STYLE: Record<Exclude<PharmacyStatus, 'none'>, { key: TranslationKey; bg: string; fg: string }> = {
+  requested: { key: 'phStatusRequested', bg: colors.yellow, fg: colors.yellowText },
+  accepted: { key: 'phStatusAccepted', bg: colors.blue, fg: colors.blueText },
+  partial: { key: 'phStatusPartial', bg: colors.yellow, fg: colors.yellowText },
+  rejected: { key: 'phStatusRejected', bg: colors.redSoft, fg: colors.danger },
+  ready: { key: 'phStatusReady', bg: colors.mint2, fg: colors.brand },
+};
+
+function pharmacyTag(status: PharmacyStatus, L: ReturnType<typeof useLanguage>['L']): Item['tag'] {
+  if (status === 'none') return undefined;
+  const style = PHARMACY_TAG_STYLE[status];
+  return { label: L(style.key), bg: style.bg, fg: style.fg };
+}
+
 const TIMES = {
   ai: { en: '5:40 PM', bn: 'বিকেল ৫:৪০' },
   visit: { en: '6:40 PM', bn: 'সন্ধ্যা ৬:৪০' },
@@ -68,6 +82,7 @@ export default function RecordsScreen() {
         id: 'medicine', kind: 'medicines', icon: 'pill', dayOffset: -2, time: TIMES.medicine,
         title: reserved ? L('tlMedReserved', { pharmacy: pharmacy.name }) : L('tlMedPending'),
         tone: reserved ? 'plain' : 'upcoming', done: reserved,
+        tag: reserved ? pharmacyTag(journey.pharmacyStatus, L) : undefined,
         onPress: () => router.push('/prescription'),
       },
       {
@@ -89,7 +104,7 @@ export default function RecordsScreen() {
       },
       { id: 'followup', kind: 'visits', icon: 'calendar-clock-outline', dayOffset: 1, time: TIMES.followUp, title: L('tlFollowup'), tone: 'upcoming', done: false },
     ];
-  }, [L, doctor.name, journey.rx.medicines.length, journey.reservedPharmacyId, journey.reportViewed, journey.checkInDone]);
+  }, [L, doctor.name, journey.rx.medicines.length, journey.reservedPharmacyId, journey.pharmacyStatus, journey.reportViewed, journey.checkInDone]);
 
   const visible = items.filter((item) => filter === 'all' || item.kind === filter);
   const doneCount = items.filter((item) => item.done).length;
