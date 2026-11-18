@@ -1,12 +1,17 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { DemoMedicine, prescription } from '../services/mock';
 
 /**
  * Demo patient journey shared by several screens:
  * consultation done → prescription → medicine reserved → report → check-in.
  * With a real backend this would come from the API instead.
  */
+/** What the doctor actually sent from the consultation screen ("Send & finish"). */
+export type SentRx = { medicineIds: string[]; tests: string[] };
+
 type JourneyState = {
   consulted: boolean;
+  sentRx: SentRx | null;
   reservedPharmacyId: string | null;
   reportViewed: boolean;
   reportShared: boolean;
@@ -14,7 +19,11 @@ type JourneyState = {
 };
 
 type JourneyContextValue = JourneyState & {
+  /** The prescription the patient sees: the doctor's selection once sent, otherwise the demo default. */
+  rx: { medicines: DemoMedicine[]; tests: string[] };
   completeConsultation: () => void;
+  /** Doctor sends the e-prescription: marks the consultation done and makes this Rx visible to the patient. */
+  sendPrescription: (rx: SentRx) => void;
   reservePharmacy: (id: string) => void;
   markReportViewed: () => void;
   shareReport: () => void;
@@ -25,6 +34,7 @@ const JourneyContext = createContext<JourneyContextValue | null>(null);
 
 const initial: JourneyState = {
   consulted: false,
+  sentRx: null,
   reservedPharmacyId: null,
   reportViewed: false,
   reportShared: false,
@@ -35,15 +45,20 @@ export function JourneyProvider({ children }: React.PropsWithChildren) {
   const [state, setState] = useState<JourneyState>(initial);
 
   const completeConsultation = useCallback(() => setState((s) => ({ ...s, consulted: true })), []);
+  const sendPrescription = useCallback((rx: SentRx) => setState((s) => ({ ...s, consulted: true, sentRx: rx })), []);
   const reservePharmacy = useCallback((id: string) => setState((s) => ({ ...s, reservedPharmacyId: id })), []);
   const markReportViewed = useCallback(() => setState((s) => (s.reportViewed ? s : { ...s, reportViewed: true })), []);
   const shareReport = useCallback(() => setState((s) => ({ ...s, reportShared: true })), []);
   const completeCheckIn = useCallback(() => setState((s) => ({ ...s, checkInDone: true })), []);
 
-  const value = useMemo(
-    () => ({ ...state, completeConsultation, reservePharmacy, markReportViewed, shareReport, completeCheckIn }),
-    [state, completeConsultation, reservePharmacy, markReportViewed, shareReport, completeCheckIn],
-  );
+  const value = useMemo<JourneyContextValue>(() => {
+    const sent = state.sentRx;
+    const rx = {
+      medicines: sent ? prescription.medicines.filter((m) => sent.medicineIds.includes(m.id)) : prescription.medicines,
+      tests: sent ? sent.tests : prescription.tests,
+    };
+    return { ...state, rx, completeConsultation, sendPrescription, reservePharmacy, markReportViewed, shareReport, completeCheckIn };
+  }, [state, completeConsultation, sendPrescription, reservePharmacy, markReportViewed, shareReport, completeCheckIn]);
   return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;
 }
 

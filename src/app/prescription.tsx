@@ -14,7 +14,7 @@ export default function PrescriptionScreen() {
   const journey = useJourney();
   const [selected, setSelected] = useState(journey.reservedPharmacyId ?? pharmacies[0].id);
   const doctor = findDoctor(DEMO.doctorId);
-  const total = prescription.medicines.length;
+  const total = journey.rx.medicines.length;
 
   const followUp = useMemo(() => addDays(new Date(), prescription.followUpInDays), []);
   const now = new Date();
@@ -50,7 +50,7 @@ export default function PrescriptionScreen() {
         </View>
         <BiText text={prescription.diagnosis} style={styles.diagnosis} />
 
-        {prescription.medicines.map((medicine) => (
+        {journey.rx.medicines.map((medicine) => (
           <View key={medicine.id} style={styles.medRow}>
             <MaterialCommunityIcons name="pill" size={20} color={colors.green2} />
             <View style={styles.flex}>
@@ -63,7 +63,7 @@ export default function PrescriptionScreen() {
         ))}
 
         <View style={styles.chips}>
-          {prescription.tests.map((test) => (
+          {journey.rx.tests.map((test) => (
             <View key={test} style={[styles.chip, { backgroundColor: colors.blue }]}>
               <MaterialCommunityIcons name="flask-outline" size={14} color={colors.blueText} />
               <AppText style={[styles.chipText, { color: colors.blueText }]}>{test}</AppText>

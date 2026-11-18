@@ -7,7 +7,7 @@ import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 import type { TranslationKey } from '../../constants/i18n';
-import { CHECKIN, DEMO, findDoctor, findPharmacy, type Localized, prescription } from '../../services/mock';
+import { CHECKIN, DEMO, findDoctor, findPharmacy, type Localized } from '../../services/mock';
 import { addDays, MONTHS_SHORT, toBanglaDigits } from '../../utils/format';
 
 type Filter = 'all' | 'visits' | 'reports' | 'medicines';
@@ -61,7 +61,7 @@ export default function RecordsScreen() {
       { id: 'visit', kind: 'visits', icon: 'stethoscope', dayOffset: -2, time: TIMES.visit, title: L('tlVisit', { doctor: doctor.name }), tone: 'plain', done: true },
       {
         id: 'rx', kind: 'medicines', icon: 'file-document-outline', dayOffset: -2, time: TIMES.rx,
-        title: L('tlRx', { n: prescription.medicines.length }), tone: 'plain', done: true,
+        title: L('tlRx', { n: journey.rx.medicines.length }), tone: 'plain', done: true,
         onPress: () => router.push('/prescription'),
       },
       {
@@ -89,7 +89,7 @@ export default function RecordsScreen() {
       },
       { id: 'followup', kind: 'visits', icon: 'calendar-clock-outline', dayOffset: 1, time: TIMES.followUp, title: L('tlFollowup'), tone: 'upcoming', done: false },
     ];
-  }, [L, doctor.name, journey.reservedPharmacyId, journey.reportViewed, journey.checkInDone]);
+  }, [L, doctor.name, journey.rx.medicines.length, journey.reservedPharmacyId, journey.reportViewed, journey.checkInDone]);
 
   const visible = items.filter((item) => filter === 'all' || item.kind === filter);
   const doneCount = items.filter((item) => item.done).length;
