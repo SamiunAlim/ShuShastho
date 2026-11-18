@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
+import { StyleProp, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Ellipse, G } from 'react-native-svg';
 import colors from '../constants/colors';
 
@@ -20,26 +20,27 @@ export function Alpana({ size = 160, opacity = 0.12, color = colors.brand, style
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 200 200"
-      style={[{ opacity, pointerEvents: 'none' }, style]}
+    // The accessibility props live on the wrapping View: react-native-svg forwards unknown props to the
+    // DOM <svg> on web, where importantForAccessibility triggers a "React does not recognize the prop" warning.
+    <View
+      style={[{ width: size, height: size, opacity, pointerEvents: 'none' }, style]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Circle cx={100} cy={100} r={96} stroke={color} strokeWidth={1.5} fill="none" />
-      <Circle cx={100} cy={100} r={74} stroke={color} strokeWidth={1.5} fill="none" />
-      <Circle cx={100} cy={100} r={40} stroke={color} strokeWidth={1.5} fill="none" />
-      <Circle cx={100} cy={100} r={12} fill={color} />
-      {PETALS.map((angle) => (
-        <G key={angle} transform={`rotate(${angle} 100 100)`}>
-          <Ellipse cx={100} cy={52} rx={13} ry={28} stroke={color} strokeWidth={1.5} fill="none" />
-        </G>
-      ))}
-      {DOTS.map((dot, index) => (
-        <Circle key={index} cx={dot.x} cy={dot.y} r={2.6} fill={color} />
-      ))}
-    </Svg>
+      <Svg width={size} height={size} viewBox="0 0 200 200">
+        <Circle cx={100} cy={100} r={96} stroke={color} strokeWidth={1.5} fill="none" />
+        <Circle cx={100} cy={100} r={74} stroke={color} strokeWidth={1.5} fill="none" />
+        <Circle cx={100} cy={100} r={40} stroke={color} strokeWidth={1.5} fill="none" />
+        <Circle cx={100} cy={100} r={12} fill={color} />
+        {PETALS.map((angle) => (
+          <G key={angle} transform={`rotate(${angle} 100 100)`}>
+            <Ellipse cx={100} cy={52} rx={13} ry={28} stroke={color} strokeWidth={1.5} fill="none" />
+          </G>
+        ))}
+        {DOTS.map((dot, index) => (
+          <Circle key={index} cx={dot.x} cy={dot.y} r={2.6} fill={color} />
+        ))}
+      </Svg>
+    </View>
   );
 }
