@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "ShuShastho",
+    "slug": "ShuShastho",
+    "scheme": "shushastho",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      "expo-status-bar"
+    ]
+  }
+}

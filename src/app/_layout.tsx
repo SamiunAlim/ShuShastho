@@ -30,10 +30,10 @@ function AppStack() {
           <Stack.Screen name="login" />
           <Stack.Screen name="otp" />
         </Stack.Protected>
-        <Stack.Protected guard={needsProfile}>
+        <Stack.Protected guard={needsProfile} redirectTo="/splash">
           <Stack.Screen name="profile-setup" />
         </Stack.Protected>
-        <Stack.Protected guard={patient}>
+        <Stack.Protected guard={patient} redirectTo="/splash">
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="assistant" />
           <Stack.Screen name="booking" />
@@ -42,19 +42,19 @@ function AppStack() {
           <Stack.Screen name="report" />
           <Stack.Screen name="checkin" />
         </Stack.Protected>
-        <Stack.Protected guard={role === 'doctor'}>
+        <Stack.Protected guard={role === 'doctor'} redirectTo="/splash">
           <Stack.Screen name="(doctor)" />
         </Stack.Protected>
-        <Stack.Protected guard={role === 'receptionist'}>
+        <Stack.Protected guard={role === 'receptionist'} redirectTo="/splash">
           <Stack.Screen name="(receptionist)" />
         </Stack.Protected>
-        <Stack.Protected guard={role === 'pharmacist'}>
+        <Stack.Protected guard={role === 'pharmacist'} redirectTo="/splash">
           <Stack.Screen name="(pharmacist)" />
         </Stack.Protected>
-        <Stack.Protected guard={role === 'hospitalAdmin'}>
+        <Stack.Protected guard={role === 'hospitalAdmin'} redirectTo="/splash">
           <Stack.Screen name="(hospital-admin)" />
         </Stack.Protected>
-        <Stack.Protected guard={role === 'superAdmin'}>
+        <Stack.Protected guard={role === 'superAdmin'} redirectTo="/splash">
           <Stack.Screen name="(super-admin)" />
         </Stack.Protected>
       </Stack>
