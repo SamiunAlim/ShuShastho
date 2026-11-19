@@ -37,7 +37,9 @@ function AppStack() {
           <Stack.Screen name="forgot-password" />
         </Stack.Protected>
         <Stack.Protected guard={!signedOut}>
+          <Stack.Screen name="my-profile" />
           <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="change-password" />
         </Stack.Protected>
         <Stack.Protected guard={patient} redirectTo="/splash">
           <Stack.Screen name="(tabs)" />

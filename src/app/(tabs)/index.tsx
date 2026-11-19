@@ -16,7 +16,7 @@ export default function HomeScreen() {
   const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
   const { session } = useAuth();
-  const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
+  const firstName = session?.name[language].trim().split(/\s+/)[0] ?? '';
   const doctor = findDoctor(queue.doctorId);
   const weekday = WEEKDAYS[language][new Date().getDay()];
 
