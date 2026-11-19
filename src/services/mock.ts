@@ -7,6 +7,9 @@ import type { AppointmentConfirmation, CreateAppointmentInput, RiskLevel } from 
 
 export type Localized = { en: string; bn: string };
 
+/** Mock one-time code for every demo OTP step (sign-up, forgot password). A real deployment sends an SMS. */
+export const DEMO_OTP = '123456';
+
 export const DEMO = {
   patient: { en: 'Rahim Uddin', bn: 'রহিম উদ্দিন' } satisfies Localized,
   hospital: {

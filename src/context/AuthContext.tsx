@@ -4,12 +4,14 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { setBackendRole } from '../services/api';
 import {
   AuthError,
+  clearAuthToken,
   changePassword as serviceChangePassword,
   displayName,
   getDemoProfile,
   getMe,
   login as serviceLogin,
   register,
+  restoreAuthToken,
   updateMe,
   type AuthErrorCode,
   type Profile,
@@ -90,6 +92,7 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     let active = true;
     (async () => {
       try {
+        await restoreAuthToken();
         const saved = await AsyncStorage.getItem(SESSION_KEY);
         if (!saved) return;
         const parsed = JSON.parse(saved) as Session;
@@ -164,6 +167,7 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
   const switchRole = useCallback(
     (role: Role) => {
       setSwitcherOpen(false);
+      clearAuthToken(); // demo accounts are local; never send the previous user's token
       const demo = getDemoProfile(role);
       if (demo) {
         // Read the saved copy so a demo account edited earlier keeps its changes.
@@ -179,6 +183,7 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     setSession(null);
     setProfile(null);
     persist(SESSION_KEY, null);
+    clearAuthToken();
   }, []);
   const openSwitcher = useCallback(() => setSwitcherOpen(true), []);
   const closeSwitcher = useCallback(() => setSwitcherOpen(false), []);

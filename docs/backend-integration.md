@@ -73,3 +73,31 @@ lock the serial transactionally, and return:
 Use the shared `{ "error": { "code": "...", "message": "..." } }` error
 envelope for non-2xx responses. Protect all health, booking, and role-scoped
 resources with server-side authorization and audit logging.
+
+## Accounts (log in, sign up, profile)
+
+The app signs in with **phone number or email + password**. Users are stored in the MongoDB `users` collection
+(`_id` = canonical phone, e.g. `01711000001`) with their `role` and a **scrypt-hashed password** — never plain text.
+Login returns an opaque session token (collection `sessions`); send it as `Authorization: Bearer <token>`.
+Code: `backend/app/accounts.py`.
+
+| Method | Path | Body | Result |
+| --- | --- | --- | --- |
+| POST | `/v1/auth/register` | `{ password, profile }` (`profile.role` = patient / doctor / receptionist / pharmacist / hospitalAdmin) | `201 { token, profile }`; `409` `phone_taken` / `email_taken` |
+| POST | `/v1/auth/login` | `{ identifier, password }` | `{ token, profile }`; `401` `invalid_credentials` |
+| POST | `/v1/auth/forgot-password` | `{ identifier }` | `{ sent: true }`; `404` `not_found` |
+| POST | `/v1/auth/reset-password` | `{ identifier, code, newPassword }` | `{ ok: true }`; `400` `invalid_code` |
+| GET | `/v1/users/me` | – | the profile |
+| PUT | `/v1/users/me` | partial profile (role and phone cannot change) | the updated profile |
+| POST | `/v1/users/me/change-password` | `{ currentPassword, newPassword }` | `{ ok: true }`; `400` `wrong_password` |
+
+Errors use `{ "error": { "message", "code" } }`. OTP is mocked: the code is always `123456` (the app sends it to
+`reset-password`; a real deployment would send an SMS). Passwords need at least 6 characters.
+
+**Demo accounts** (seeded on server start if missing, password `demo123`): patient `01711000001`, doctor `01711000002`,
+receptionist `01711000003`, pharmacist `01711000004`, hospital admin `01711000005`.
+
+**Frontend:** `src/services/data.ts` calls these endpoints first when `EXPO_PUBLIC_API_URL` is set. A definite answer
+(wrong password, phone already used) is final; if the server cannot be reached the same call falls back to the accounts
+saved on the device, so the demo keeps working offline. The session token is kept in AsyncStorage (stay logged in until
+Log out).

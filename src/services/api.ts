@@ -37,6 +37,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    /** Machine-readable reason from the backend, e.g. "phone_taken". */
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -51,22 +53,27 @@ async function request<T>(
   path: string,
   init: RequestInit,
   validate: (value: unknown) => value is T,
+  /** `auth: false` for log in / sign up / forgot password, which have no token yet. */
+  options: { auth?: boolean } = {},
 ): Promise<T> {
+  const auth = options.auth ?? true;
   if (!API_BASE_URL) {
     throw new ApiError('Backend is not configured. Set EXPO_PUBLIC_API_URL.');
   }
-  if (!accessTokenProvider) {
+  if (auth && !accessTokenProvider) {
     throw new ApiError('Authentication is not configured. Sign in before using the health service.');
   }
 
   let accessToken: string | null | undefined;
-  try {
-    accessToken = await accessTokenProvider?.();
-  } catch {
-    throw new ApiError('Could not authorize this request. Please sign in again.');
-  }
-  if (!accessToken) {
-    throw new ApiError('Sign in before using the health service.');
+  if (auth) {
+    try {
+      accessToken = await accessTokenProvider?.();
+    } catch {
+      throw new ApiError('Could not authorize this request. Please sign in again.');
+    }
+    if (!accessToken) {
+      throw new ApiError('Sign in before using the health service.');
+    }
   }
 
   let response: Response;
@@ -94,7 +101,8 @@ async function request<T>(
     const message = isRecord(body) && isRecord(body.error) && typeof body.error.message === 'string'
       ? body.error.message
       : `Health service request failed (${response.status}).`;
-    throw new ApiError(message, response.status);
+    const code = isRecord(body) && isRecord(body.error) && typeof body.error.code === 'string' ? body.error.code : undefined;
+    throw new ApiError(message, response.status, code);
   }
 
   if (!validate(body)) {
@@ -171,8 +179,20 @@ export function setBackendRole(role: string | null | undefined) {
   backendRole = next;
 }
 
+/** Real session token from POST /v1/auth/login or /register; used instead of the demo token while set. */
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+export function hasAuthToken() {
+  return authToken !== null;
+}
+
 async function getDemoToken(): Promise<string | null> {
   if (!API_BASE_URL) return null;
+  if (authToken) return authToken;
   if (cachedToken?.role === backendRole) return cachedToken.token;
   const role = backendRole;
   const controller = new AbortController();
@@ -296,4 +316,43 @@ export function fetchEmergencyAlerts(): Promise<EmergencyAlert[]> {
 
 export function updateEmergencyAlert(id: string, status: 'acknowledged' | 'resolved'): Promise<EmergencyAlert> {
   return request(`/v1/emergency/alerts/${enc(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) }, isAlert);
+}
+
+/* ------------------------------- Accounts (users) ------------------------------ */
+
+/** Matches `Profile` in src/services/data.ts and backend/app/accounts.py. */
+export type ApiProfile = import('./data').Profile;
+export type ApiSession = { token: string; profile: ApiProfile };
+
+const isSession = (value: unknown): value is ApiSession =>
+  isRecord(value) && typeof value.token === 'string' && isRecord(value.profile);
+const isProfile = (value: unknown): value is ApiProfile => isRecord(value) && typeof value.phone === 'string';
+const isOk = (value: unknown): value is Record<string, unknown> => isRecord(value);
+
+export function apiRegister(profile: ApiProfile, password: string): Promise<ApiSession> {
+  return request('/v1/auth/register', { method: 'POST', body: JSON.stringify({ password, profile }) }, isSession, { auth: false });
+}
+
+export function apiLogin(identifier: string, password: string): Promise<ApiSession> {
+  return request('/v1/auth/login', { method: 'POST', body: JSON.stringify({ identifier, password }) }, isSession, { auth: false });
+}
+
+export function apiForgotPassword(identifier: string) {
+  return request('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) }, isOk, { auth: false });
+}
+
+export function apiResetPassword(identifier: string, code: string, newPassword: string) {
+  return request('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ identifier, code, newPassword }) }, isOk, { auth: false });
+}
+
+export function apiGetMe(): Promise<ApiProfile> {
+  return request('/v1/users/me', { method: 'GET' }, isProfile);
+}
+
+export function apiUpdateMe(patch: Partial<ApiProfile>): Promise<ApiProfile> {
+  return request('/v1/users/me', { method: 'PUT', body: JSON.stringify(patch) }, isProfile);
+}
+
+export function apiChangePassword(currentPassword: string, newPassword: string) {
+  return request('/v1/users/me/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }, isOk);
 }

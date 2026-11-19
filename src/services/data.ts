@@ -1,7 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  ApiError,
+  apiChangePassword,
+  apiForgotPassword,
+  apiLogin,
+  apiRegister,
+  apiResetPassword,
+  apiUpdateMe,
   createAppointment as apiCreateAppointment,
+  hasAuthToken,
   isBackendConfigured,
+  setAuthToken,
 } from './api';
 import type { Role } from '../context/AuthContext';
 import { normalizePhone } from '../utils/format';
@@ -9,6 +18,7 @@ import { setOffline } from './connection';
 import {
   CATALOG_HOSPITALS,
   DEMO,
+  DEMO_OTP,
   DEMO_STAFF,
   DEPARTMENTS,
   delay,
@@ -201,43 +211,158 @@ export async function isTaken(phone: string, email: string): Promise<AuthErrorCo
   return null;
 }
 
+/* ---- Backend wiring ----
+ * With EXPO_PUBLIC_API_URL set, each call below goes to the backend first (POST /v1/auth/..., /v1/users/me).
+ * A definite answer from the server (wrong password, phone already used ...) is final. If the server cannot be
+ * reached (or is older and lacks the endpoint) the call falls back to the accounts saved on this device, so the
+ * demo keeps working offline. Accounts the server knows are also copied to the device.
+ */
+
+const TOKEN_KEY = 'shushastho.token';
+
+async function rememberToken(token: string | null): Promise<void> {
+  setAuthToken(token);
+  try {
+    if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
+    else await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // The token only lives in memory then; the next login gets a new one.
+  }
+}
+
+/** App start: reuse the saved session token (stay logged in). */
+export async function restoreAuthToken(): Promise<void> {
+  try {
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    if (token) setAuthToken(token);
+  } catch {
+    // No token: profile calls stay local.
+  }
+}
+
+/** Log out / demo role switch: stop sending the user's token. */
+export function clearAuthToken(): void {
+  rememberToken(null).catch(() => undefined);
+}
+
+function definite(error: unknown, ...codes: string[]): boolean {
+  return error instanceof ApiError && error.code !== undefined && codes.includes(error.code);
+}
+
+function noteNetwork(error: unknown) {
+  // No status = the request never got an answer.
+  if (error instanceof ApiError && error.status === undefined) setOffline(true);
+}
+
+/** Keep a local copy of an account the server knows (so it also logs in offline). */
+async function saveLocal(profile: Profile, password: string): Promise<void> {
+  const full: Profile = { ...EMPTY_PROFILE, ...profile };
+  const users = (await readUsers()).filter((u) => u.phone !== full.phone);
+  await writeUsers([...users, userFromProfile(full, password)]);
+}
+
+async function setLocalPassword(phone: string, password: string): Promise<void> {
+  const users = await readUsers();
+  await writeUsers(users.map((u) => (u.phone === phone ? { ...u, passwordHash: hashPassword(phone, password) } : u)));
+}
+
 /** Create an account (after OTP). Throws AuthError when the phone or email is already used. */
 export async function register(profile: Profile, password: string): Promise<Profile> {
+  if (isBackendConfigured()) {
+    try {
+      const session = await apiRegister(profile, password);
+      setOffline(false);
+      await saveLocal(session.profile, password);
+      await rememberToken(session.token);
+      return { ...EMPTY_PROFILE, ...session.profile };
+    } catch (error) {
+      if (definite(error, 'phone_taken', 'email_taken')) {
+        throw new AuthError((error as ApiError).code === 'email_taken' ? 'email_taken' : 'phone_taken');
+      }
+      noteNetwork(error);
+    }
+  }
   const taken = await isTaken(profile.phone, profile.email);
   if (taken) throw new AuthError(taken);
   const users = await readUsers();
   await writeUsers([...users, userFromProfile(profile, password)]);
+  await rememberToken(null);
   return profile;
 }
 
 /** Log in with phone or email + password. Resolves to the profile, or null when the details are wrong. */
 export async function login(identifier: string, password: string): Promise<Profile | null> {
+  if (isBackendConfigured()) {
+    try {
+      const session = await apiLogin(identifier, password);
+      setOffline(false);
+      await saveLocal(session.profile, password);
+      await rememberToken(session.token);
+      return { ...EMPTY_PROFILE, ...session.profile };
+    } catch (error) {
+      if (definite(error, 'invalid_credentials')) return null;
+      noteNetwork(error);
+    }
+  }
   const users = await readUsers();
   const user = users.find((u) => matches(u, identifier));
   if (!user || user.passwordHash !== hashPassword(user.phone, password)) return null;
+  await rememberToken(null);
   return user.profile;
 }
 
 /** Forgot password, step 1: is there an account for this phone / email? */
 export async function accountExists(identifier: string): Promise<boolean> {
+  if (isBackendConfigured()) {
+    try {
+      await apiForgotPassword(identifier);
+      setOffline(false);
+      return true;
+    } catch (error) {
+      if (definite(error, 'not_found')) return false;
+      noteNetwork(error);
+    }
+  }
   return (await readUsers()).some((u) => matches(u, identifier));
 }
 
 /** Forgot password, last step (after OTP): set a new password. */
 export async function resetPassword(identifier: string, newPassword: string): Promise<boolean> {
   const users = await readUsers();
-  const user = users.find((u) => matches(u, identifier));
-  if (!user) return false;
-  await writeUsers(users.map((u) => (u === user ? { ...u, passwordHash: hashPassword(u.phone, newPassword) } : u)));
+  const local = users.find((u) => matches(u, identifier));
+  if (isBackendConfigured()) {
+    try {
+      await apiResetPassword(identifier, DEMO_OTP, newPassword);
+      setOffline(false);
+      if (local) await setLocalPassword(local.phone, newPassword);
+      return true;
+    } catch (error) {
+      if (definite(error, 'not_found')) return false;
+      noteNetwork(error);
+    }
+  }
+  if (!local) return false;
+  await setLocalPassword(local.phone, newPassword);
   return true;
 }
 
 /** Signed-in user changes their own password. False when the current password is wrong. */
 export async function changePassword(phone: string, current: string, next: string): Promise<boolean> {
+  if (isBackendConfigured() && hasAuthToken()) {
+    try {
+      await apiChangePassword(current, next);
+      setOffline(false);
+      await setLocalPassword(phone, next);
+      return true;
+    } catch (error) {
+      if (definite(error, 'wrong_password')) return false;
+      noteNetwork(error);
+    }
+  }
   const users = await readUsers();
   const user = users.find((u) => u.phone === phone);
   if (!user || user.passwordHash !== hashPassword(phone, current)) return false;
-  await writeUsers(users.map((u) => (u === user ? { ...u, passwordHash: hashPassword(phone, next) } : u)));
+  await setLocalPassword(phone, next);
   return true;
 }
 
@@ -252,6 +377,11 @@ export async function updateMe(phone: string, patch: Partial<Profile>): Promise<
   if (!user) return null;
   const profile: Profile = { ...user.profile, ...patch, role: user.profile.role, phone: user.profile.phone };
   await writeUsers(users.map((u) => (u === user ? { ...u, email: profile.email.trim().toLowerCase(), profile } : u)));
+  if (isBackendConfigured() && hasAuthToken()) {
+    // Best effort: the device copy above is already saved.
+    const { role: _role, phone: _phone, ...editable } = profile;
+    apiUpdateMe(editable).catch((error) => noteNetwork(error));
+  }
   return profile;
 }
 

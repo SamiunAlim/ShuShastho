@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth, clinic, emergency, triage
+from . import accounts, auth, clinic, emergency, triage
 from .db import get_db
 from .seed import seed
 
@@ -15,6 +15,11 @@ async def lifespan(_: FastAPI):
         print("Seeded demo data" if seed() else "Demo data already present")
     except Exception as exc:  # server still starts; /health reports the problem
         print(f"Seed skipped: {exc}")
+    try:
+        added = accounts.seed_users()
+        print(f"Added {added} demo account(s)" if added else "Demo accounts already present")
+    except Exception as exc:
+        print(f"Demo accounts skipped: {exc}")
     yield
 
 
@@ -30,6 +35,8 @@ async def http_error(_: Request, exc: HTTPException):
 
 
 app.include_router(auth.router)
+app.include_router(accounts.router)
+app.include_router(accounts.users_router)
 app.include_router(clinic.router)
 app.include_router(emergency.router)
 app.include_router(triage.router)

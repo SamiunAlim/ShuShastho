@@ -6,8 +6,7 @@ import { toAsciiDigits } from '../utils/format';
 import { AppText, FONT_FAMILIES } from './ui';
 
 export const OTP_LENGTH = 6;
-/** Mock one-time code for every demo flow. A real backend would send an SMS. */
-export const DEMO_OTP = '123456';
+export { DEMO_OTP } from '../services/mock';
 
 /** Six boxes over one invisible input: tapping a box focuses it. */
 export function OtpInput({ value, onChange, label, error = false }: {
