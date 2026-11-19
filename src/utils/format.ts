@@ -58,3 +58,15 @@ export function ageFromDob(dob: string, today: Date = new Date()): number | null
   if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
   return age >= 0 && age < 120 ? age : null;
 }
+
+/** "01711000001", "1711000001", "+8801711000001" → "01711000001"; null when it is not a Bangladeshi mobile number. */
+export function normalizePhone(input: string): string | null {
+  let digits = toAsciiDigits(input).replace(/\D/g, '');
+  if (digits.startsWith('880')) digits = digits.slice(3);
+  if (!digits.startsWith('0')) digits = `0${digits}`;
+  return /^01\d{9}$/.test(digits) ? digits : null;
+}
+
+export function isValidEmail(input: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(input.trim());
+}

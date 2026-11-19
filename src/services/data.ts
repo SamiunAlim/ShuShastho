@@ -3,9 +3,13 @@ import {
   createAppointment as apiCreateAppointment,
   isBackendConfigured,
 } from './api';
+import type { Role } from '../context/AuthContext';
+import { normalizePhone } from '../utils/format';
 import { setOffline } from './connection';
 import {
   CATALOG_HOSPITALS,
+  DEMO,
+  DEMO_STAFF,
   DEPARTMENTS,
   delay,
   doctors,
@@ -64,92 +68,196 @@ export async function getSlots(doctorId: string, date: string): Promise<Slot[]> 
 /* --------------------------------- Account --------------------------------- */
 
 export type Profile = {
+  role: Role;
   name: string;
+  /** Canonical 11-digit mobile number, e.g. 01711000001 (also the login id). */
+  phone: string;
+  /** Optional; also usable as the login id. */
+  email: string;
   age: string;
   /** DD/MM/YYYY, optional (age is derived from it when valid). */
   dob: string;
   gender: 'female' | 'male' | 'other' | '';
   district: string;
   area: string;
+  /** Patient */
   bloodGroup: string;
-  emergencyContact: string;
   allergies: string;
   /** Keys of the chronic-condition chips the user ticked. */
   chronic: string[];
-  consent: boolean;
+  emergencyContact: string;
+  /** Doctor */
+  bmdc: string;
+  departmentId: string;
+  hospitalId: string;
+  degrees: string;
+  fee: string;
+  /** Receptionist / pharmacist / hospital admin: hospital or pharmacy name */
+  organization: string;
+  staffId: string;
+  designation: string;
 };
 
 export const EMPTY_PROFILE: Profile = {
-  name: '', age: '', dob: '', gender: '', district: '', area: '', bloodGroup: '',
-  emergencyContact: '', allergies: '', chronic: [], consent: false,
+  role: 'patient', name: '', phone: '', email: '', age: '', dob: '', gender: '', district: '', area: '',
+  bloodGroup: '', allergies: '', chronic: [], emergencyContact: '',
+  bmdc: '', departmentId: '', hospitalId: '', degrees: '', fee: '',
+  organization: '', staffId: '', designation: '',
 };
 
-type StoredAccount = { phone: string; pinHash: string; profile: Profile };
+export type AuthErrorCode = 'phone_taken' | 'email_taken';
 
-const ACCOUNT_KEY = 'shushastho.account';
-const APPOINTMENTS_KEY = 'shushastho.appointments';
-
-/** Demo only: a real backend would hash the PIN on the server. */
-function hashPin(phone: string, pin: string): string {
-  let hash = 5381;
-  const text = `${phone}:${pin}`;
-  for (let i = 0; i < text.length; i += 1) hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
-  return String(hash);
-}
-
-async function readAccount(): Promise<StoredAccount | null> {
-  try {
-    const raw = await AsyncStorage.getItem(ACCOUNT_KEY);
-    if (!raw) return null;
-    const stored = JSON.parse(raw) as StoredAccount;
-    // Older saves have fewer profile fields.
-    return { ...stored, profile: { ...EMPTY_PROFILE, ...stored.profile } };
-  } catch {
-    return null;
+export class AuthError extends Error {
+  constructor(readonly code: AuthErrorCode) {
+    super(code);
+    this.name = 'AuthError';
   }
 }
 
-async function writeAccount(account: StoredAccount): Promise<void> {
-  await AsyncStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+type StoredUser = { phone: string; email: string; passwordHash: string; profile: Profile };
+
+const USERS_KEY = 'shushastho.users';
+const APPOINTMENTS_KEY = 'shushastho.appointments';
+
+/** Password every demo account uses (shown on the login screen). */
+export const DEMO_PASSWORD = 'demo123';
+
+/** Fictional accounts so the pitch works without signing up. Keep the same phone numbers in the backend seed. */
+export const DEMO_ACCOUNTS: { name: Localized; profile: Profile }[] = [
+  { name: DEMO.patient, profile: {
+    ...EMPTY_PROFILE, role: 'patient', name: DEMO.patient.en, phone: '01711000001', email: 'rahim@example.com',
+    age: '34', gender: 'male', district: 'Dhaka', area: 'Dhanmondi', bloodGroup: 'B+', emergencyContact: '01811234567' } },
+  { name: DEMO_STAFF.doctor, profile: {
+    ...EMPTY_PROFILE, role: 'doctor', name: DEMO_STAFF.doctor.en, phone: '01711000002', email: 'farhana@example.com',
+    age: '41', gender: 'female', district: 'Dhaka', area: 'Dhanmondi', bmdc: 'A-48213', departmentId: 'medicine',
+    hospitalId: 'dhaka-medicare', degrees: 'MBBS, FCPS (Medicine)', fee: String(DEMO.fee) } },
+  { name: DEMO_STAFF.receptionist, profile: {
+    ...EMPTY_PROFILE, role: 'receptionist', name: DEMO_STAFF.receptionist.en, phone: '01711000003',
+    age: '29', gender: 'female', district: 'Dhaka', area: 'Dhanmondi',
+    organization: DEMO.hospital.en, staffId: 'DMH-R-014' } },
+  { name: DEMO_STAFF.pharmacist, profile: {
+    ...EMPTY_PROFILE, role: 'pharmacist', name: DEMO_STAFF.pharmacist.en, phone: '01711000004',
+    age: '36', gender: 'male', district: 'Dhaka', area: 'Dhanmondi',
+    organization: 'Rahman Pharmacy, Dhanmondi', staffId: 'RP-007' } },
+  { name: DEMO_STAFF.hospitalAdmin, profile: {
+    ...EMPTY_PROFILE, role: 'hospitalAdmin', name: DEMO_STAFF.hospitalAdmin.en, phone: '01711000005',
+    age: '45', gender: 'male', district: 'Dhaka', area: 'Dhanmondi',
+    organization: DEMO.hospital.en, designation: 'Hospital Manager' } },
+];
+
+/** Demo only: a real backend hashes passwords on the server (see backend/app/auth.py). */
+function hashPassword(phone: string, password: string): string {
+  let a = 5381;
+  let b = 52711;
+  const text = `${phone}:${password}`;
+  for (let i = 0; i < text.length; i += 1) {
+    a = ((a << 5) + a + text.charCodeAt(i)) >>> 0;
+    b = ((b * 33) ^ text.charCodeAt(i)) >>> 0;
+  }
+  return `${a.toString(16)}${b.toString(16)}`;
 }
 
-/** The phone saved on this device (so the login screen can ask for the PIN only), or null for a new device. */
-export async function getSavedPhone(): Promise<string | null> {
-  return (await readAccount())?.phone ?? null;
+function userFromProfile(profile: Profile, password: string): StoredUser {
+  return { phone: profile.phone, email: profile.email.trim().toLowerCase(), passwordHash: hashPassword(profile.phone, password), profile };
 }
 
-/** Create the account after OTP + profile setup + PIN. Replaces any account saved on this device. */
-export async function register(input: { phone: string; profile: Profile; pin: string }): Promise<Profile> {
-  await writeAccount({ phone: input.phone, pinHash: hashPin(input.phone, input.pin), profile: input.profile });
-  return input.profile;
+/** All users on this device; the demo accounts are added the first time. */
+async function readUsers(): Promise<StoredUser[]> {
+  let users: StoredUser[] = [];
+  try {
+    const raw = await AsyncStorage.getItem(USERS_KEY);
+    if (raw) users = (JSON.parse(raw) as StoredUser[]).map((u) => ({ ...u, profile: { ...EMPTY_PROFILE, ...u.profile } }));
+  } catch {
+    users = [];
+  }
+  const missing = DEMO_ACCOUNTS.filter((demo) => !users.some((u) => u.phone === demo.profile.phone));
+  if (missing.length > 0) {
+    users = [...users, ...missing.map((demo) => userFromProfile(demo.profile, DEMO_PASSWORD))];
+    await writeUsers(users);
+  }
+  return users;
 }
 
-/** Phone + PIN login (no OTP). Resolves to the profile, or null when the PIN is wrong. */
-export async function loginWithPin(phone: string, pin: string): Promise<Profile | null> {
-  const account = await readAccount();
-  if (!account || account.phone !== phone || account.pinHash !== hashPin(phone, pin)) return null;
-  return account.profile;
+async function writeUsers(users: StoredUser[]): Promise<void> {
+  await AsyncStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-/** "Forgot PIN": after OTP, set a new PIN for the saved account. */
-export async function resetPin(phone: string, pin: string): Promise<Profile | null> {
-  const account = await readAccount();
-  if (!account || account.phone !== phone) return null;
-  await writeAccount({ ...account, pinHash: hashPin(phone, pin) });
-  return account.profile;
+function matches(user: StoredUser, identifier: string): boolean {
+  if (identifier.includes('@')) return user.email !== '' && user.email === identifier.trim().toLowerCase();
+  const phone = normalizePhone(identifier);
+  return phone !== null && user.phone === phone;
 }
 
-export async function getMe(): Promise<{ phone: string; profile: Profile } | null> {
-  const account = await readAccount();
-  return account ? { phone: account.phone, profile: account.profile } : null;
+/** Name to show in headers: the fictional demo accounts have a Bangla name too. */
+export function displayName(profile: Pick<Profile, 'name' | 'phone'>): Localized {
+  return DEMO_ACCOUNTS.find((demo) => demo.profile.phone === profile.phone)?.name ?? { en: profile.name, bn: profile.name };
 }
 
-export async function updateMe(patch: Partial<Profile>): Promise<Profile | null> {
-  const account = await readAccount();
-  if (!account) return null;
-  const profile = { ...account.profile, ...patch };
-  await writeAccount({ ...account, profile });
+/** True when this phone or email already belongs to an account. */
+export async function isTaken(phone: string, email: string): Promise<AuthErrorCode | null> {
+  const users = await readUsers();
+  if (users.some((u) => u.phone === phone)) return 'phone_taken';
+  if (email.trim() !== '' && users.some((u) => u.email === email.trim().toLowerCase())) return 'email_taken';
+  return null;
+}
+
+/** Create an account (after OTP). Throws AuthError when the phone or email is already used. */
+export async function register(profile: Profile, password: string): Promise<Profile> {
+  const taken = await isTaken(profile.phone, profile.email);
+  if (taken) throw new AuthError(taken);
+  const users = await readUsers();
+  await writeUsers([...users, userFromProfile(profile, password)]);
   return profile;
+}
+
+/** Log in with phone or email + password. Resolves to the profile, or null when the details are wrong. */
+export async function login(identifier: string, password: string): Promise<Profile | null> {
+  const users = await readUsers();
+  const user = users.find((u) => matches(u, identifier));
+  if (!user || user.passwordHash !== hashPassword(user.phone, password)) return null;
+  return user.profile;
+}
+
+/** Forgot password, step 1: is there an account for this phone / email? */
+export async function accountExists(identifier: string): Promise<boolean> {
+  return (await readUsers()).some((u) => matches(u, identifier));
+}
+
+/** Forgot password, last step (after OTP): set a new password. */
+export async function resetPassword(identifier: string, newPassword: string): Promise<boolean> {
+  const users = await readUsers();
+  const user = users.find((u) => matches(u, identifier));
+  if (!user) return false;
+  await writeUsers(users.map((u) => (u === user ? { ...u, passwordHash: hashPassword(u.phone, newPassword) } : u)));
+  return true;
+}
+
+/** Signed-in user changes their own password. False when the current password is wrong. */
+export async function changePassword(phone: string, current: string, next: string): Promise<boolean> {
+  const users = await readUsers();
+  const user = users.find((u) => u.phone === phone);
+  if (!user || user.passwordHash !== hashPassword(phone, current)) return false;
+  await writeUsers(users.map((u) => (u === user ? { ...u, passwordHash: hashPassword(phone, next) } : u)));
+  return true;
+}
+
+export async function getMe(phone: string): Promise<Profile | null> {
+  return (await readUsers()).find((u) => u.phone === phone)?.profile ?? null;
+}
+
+/** Save profile changes. The role and phone number cannot be changed here. */
+export async function updateMe(phone: string, patch: Partial<Profile>): Promise<Profile | null> {
+  const users = await readUsers();
+  const user = users.find((u) => u.phone === phone);
+  if (!user) return null;
+  const profile: Profile = { ...user.profile, ...patch, role: user.profile.role, phone: user.profile.phone };
+  await writeUsers(users.map((u) => (u === user ? { ...u, email: profile.email.trim().toLowerCase(), profile } : u)));
+  return profile;
+}
+
+/** Demo role switcher: the demo account for a role (undefined for roles without one). */
+export function getDemoProfile(role: Role): Profile | undefined {
+  return DEMO_ACCOUNTS.find((demo) => demo.profile.role === role)?.profile;
 }
 
 /* ------------------------------- Appointments ------------------------------- */

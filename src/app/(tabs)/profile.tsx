@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { CHRONIC } from '../../components/ProfileForm';
+import { CHRONIC } from '../../components/ProfileFields';
 import { ActionButton, AppScreen, AppText, BiText, BrandHeader, Card, DemoNotice, PageTitle } from '../../components/ui';
 import colors from '../../constants/colors';
 import type { TranslationKey } from '../../constants/i18n';

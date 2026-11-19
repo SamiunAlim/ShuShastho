@@ -1,64 +1,42 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Alpana } from '../components/Alpana';
-import { PinInput, PIN_LENGTH } from '../components/PinInput';
-import { ActionButton, AppScreen, AppText, BiText, FONT_FAMILIES, LanguagePill, Logo } from '../components/ui';
+import { FormInput, PasswordInput } from '../components/form';
+import { ActionButton, AppScreen, AppText, BackButton, BiText, LanguagePill, Logo } from '../components/ui';
 import colors from '../constants/colors';
-import { ROLE_META, STAFF_ROLES } from '../constants/roles';
-import { useAuth, type Role } from '../context/AuthContext';
+import { ROLE_META } from '../constants/roles';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { DEMO_STAFF } from '../services/mock';
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '../services/data';
 import { call999 } from '../utils/emergency';
-import { toAsciiDigits } from '../utils/format';
-
-type Tab = 'patient' | 'staff';
-
-/** Mock login: any phone number (6+ digits) is accepted. */
-const MIN_PHONE_DIGITS = 6;
+import { goBack } from '../utils/navigation';
 
 export default function LoginScreen() {
-  const { account, loginWithPin } = useAuth();
-  const { language, t, tf, L, nf } = useLanguage();
-  const [tab, setTab] = useState<Tab>('patient');
-  const [staffRole, setStaffRole] = useState<Role>('doctor');
-  const [phone, setPhone] = useState(DEMO_STAFF.phone);
-  const [touched, setTouched] = useState(false);
+  const { language, t, L, nf } = useLanguage();
+  const { login } = useAuth();
+  const { reset } = useLocalSearchParams<{ reset?: string }>();
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const [callError, setCallError] = useState(false);
-  const [forgot, setForgot] = useState(false);
-  const [pin, setPin] = useState('');
-  const [pinWrong, setPinWrong] = useState(false);
-  const [checking, setChecking] = useState(false);
 
-  // A patient who already registered on this device logs in with phone + PIN (no OTP).
-  const pinMode = tab === 'patient' && account !== null && !forgot;
-
-  const submitPin = async (value: string) => {
-    if (checking) return;
-    setChecking(true);
-    const ok = await loginWithPin(value);
-    // On success the session changes and the root layout leaves this screen.
-    if (!ok) {
-      setPinWrong(true);
-      setPin('');
-      setChecking(false);
+  const submit = async () => {
+    if (busy) return;
+    if (!identifier.trim() || !password) {
+      setError(t('loginRequired'));
+      return;
     }
-  };
-
-  const onPinChange = (value: string) => {
-    setPinWrong(false);
-    setPin(value);
-    if (value.length === PIN_LENGTH) submitPin(value);
-  };
-
-  const valid = phone.length >= MIN_PHONE_DIGITS;
-  const role: Role = tab === 'patient' ? 'patient' : staffRole;
-
-  const sendOtp = () => {
-    setTouched(true);
-    if (!valid) return;
-    router.push({ pathname: '/otp', params: { phone, role } });
+    setError('');
+    setBusy(true);
+    const ok = await login(identifier, password);
+    // On success the session changes and the root layout opens that role's home.
+    if (!ok) {
+      setError(t('loginInvalid'));
+      setBusy(false);
+    }
   };
 
   return (
@@ -67,6 +45,7 @@ export default function LoginScreen() {
 
       <View style={styles.topRow}>
         <View style={styles.brand}>
+          <BackButton onPress={() => goBack('/splash')} />
           <Logo />
           <View>
             <AppText style={styles.brandName}>{language === 'bn' ? 'সুস্বাস্থ্য' : 'ShuShastho'}</AppText>
@@ -78,104 +57,68 @@ export default function LoginScreen() {
 
       <BiText text={L('loginWelcome')} style={styles.heading} subStyle={styles.headingSub} />
 
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {(['patient', 'staff'] as const).map((key) => {
-          const active = tab === key;
-          return (
-            <Pressable
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              onPress={() => setTab(key)}
-              style={[styles.tab, active && styles.tabActive]}
-            >
-              <Ionicons name={key === 'patient' ? 'person-outline' : 'medkit-outline'} size={20} color={active ? colors.brand : colors.muted} />
-              <BiText
-                text={L(key === 'patient' ? 'loginTabPatient' : 'loginTabStaff')}
-                style={[styles.tabText, active && styles.tabTextActive]}
-                subStyle={styles.tabSub}
-              />
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {tab === 'staff' ? (
-        <View style={styles.block}>
-          <BiText text={L('yourRole')} style={styles.label} />
-          <View style={styles.roleRow}>
-            {STAFF_ROLES.map((key) => {
-              const active = staffRole === key;
-              return (
-                <Pressable
-                  key={key}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setStaffRole(key)}
-                  style={[styles.roleChip, active && styles.roleChipActive]}
-                >
-                  <Ionicons name={ROLE_META[key].icon} size={18} color={active ? colors.surface : colors.brand} />
-                  <AppText style={[styles.roleChipText, active && styles.roleChipTextActive]} numberOfLines={1}>
-                    {t(ROLE_META[key].label)}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
+      {reset ? (
+        <View style={styles.success}>
+          <Ionicons name="checkmark-circle" size={20} color={colors.brand} />
+          <AppText style={styles.successText}>{t('passwordResetDone')}</AppText>
         </View>
       ) : null}
 
-      {pinMode ? (
-        <View style={styles.pinBlock}>
-          <BiText text={L('pinLoginTitle')} style={styles.pinTitle} subStyle={styles.headingSub} />
-          <AppText style={styles.pinPhone}>{tf('pinLoggingAs', { phone: account?.phone ?? '' })}</AppText>
-          <AppText style={styles.label}>{t('pinEnter')}</AppText>
-          <PinInput value={pin} onChange={onPinChange} error={pinWrong} label={t('pinEnter')} />
-          {pinWrong ? <AppText style={styles.pinError}>{t('pinWrong')}</AppText> : null}
-        </View>
-      ) : (
-      <View style={styles.block}>
-        <BiText text={L('mobileNumber')} style={styles.label} />
-        <View style={[styles.phoneBox, touched && !valid && styles.phoneBoxError]}>
-          <View style={styles.prefix}><AppText style={styles.prefixText}>+{nf(880)}</AppText></View>
-          <TextInput
-            accessibilityLabel={t('mobileNumber')}
-            value={phone}
-            onChangeText={(text) => setPhone(toAsciiDigits(text).replace(/\D/g, '').slice(0, 11))}
-            keyboardType="phone-pad"
-            textContentType="telephoneNumber"
-            autoComplete="tel"
-            maxLength={11}
-            onSubmitEditing={sendOtp}
-            returnKeyType="go"
-            style={styles.phoneInput}
-          />
-        </View>
-        {touched && !valid ? <AppText style={styles.error}>{t('phoneInvalid')}</AppText> : null}
+      <View style={styles.form}>
+        <FormInput
+          label={L('loginIdentifier')}
+          value={identifier}
+          onChangeText={(text) => { setIdentifier(text); setError(''); }}
+          placeholder={t('loginIdentifierHint')}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          textContentType="username"
+        />
+        <PasswordInput
+          label={L('password')}
+          value={password}
+          onChangeText={(text) => { setPassword(text); setError(''); }}
+          onSubmitEditing={submit}
+          returnKeyType="go"
+        />
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
+            <AppText style={styles.errorText}>{error}</AppText>
+          </View>
+        ) : null}
       </View>
-      )}
 
-      {pinMode ? (
-        <>
-          <ActionButton label={t('pinLogin')} onPress={() => submitPin(pin)} disabled={pin.length < PIN_LENGTH || checking} />
-          <Pressable accessibilityRole="button" onPress={() => { setForgot(true); setPhone(''); }} hitSlop={8} style={styles.forgot}>
-            <AppText style={styles.forgotText}>{t('pinForgot')}</AppText>
+      <ActionButton label={busy ? '…' : t('logIn')} onPress={submit} disabled={busy} />
+
+      <Pressable accessibilityRole="link" onPress={() => router.push('/forgot-password')} hitSlop={8} style={styles.forgot}>
+        <AppText style={styles.forgotText}>{t('forgotPassword')}</AppText>
+      </Pressable>
+
+      <View style={styles.dividerRow}>
+        <View style={styles.line} />
+        <AppText style={styles.or}>{t('orDivider')}</AppText>
+        <View style={styles.line} />
+      </View>
+
+      <ActionButton label={t('createAccount')} onPress={() => router.push('/signup')} variant="secondary" />
+
+      <View style={styles.demoCard}>
+        <BiText text={L('demoAccounts')} style={styles.demoTitle} subStyle={styles.demoSub} />
+        <AppText style={styles.demoHint}>{t('demoAccountsHint')}</AppText>
+        {DEMO_ACCOUNTS.map(({ profile }) => (
+          <Pressable
+            key={profile.phone}
+            accessibilityRole="button"
+            onPress={() => { setIdentifier(profile.phone); setPassword(DEMO_PASSWORD); setError(''); }}
+            style={({ pressed }) => [styles.demoRow, pressed && styles.pressed]}
+          >
+            <Ionicons name={ROLE_META[profile.role].icon} size={16} color={colors.brand} />
+            <AppText style={styles.demoRole}>{t(ROLE_META[profile.role].label)}</AppText>
+            <AppText style={styles.demoPhone}>{nf(profile.phone)}</AppText>
           </Pressable>
-        </>
-      ) : (
-        <ActionButton label={language === 'bn' ? `${t('sendOtp')} · ${L('sendOtp').en}` : t('sendOtp')} onPress={sendOtp} />
-      )}
-
-      <View style={styles.infoCard}>
-        <Ionicons name="shield-checkmark-outline" size={22} color={colors.blueText} />
-        <View style={styles.flex}>
-          <AppText style={styles.infoTitle}>{t(tab === 'patient' ? 'noPasswordNeeded' : 'staffApprovalNote')}</AppText>
-          {language === 'bn' ? (
-            <AppText style={styles.infoSub}>
-              {L(tab === 'patient' ? 'noPasswordNeeded' : 'staffApprovalNote').en}
-            </AppText>
-          ) : null}
-        </View>
+        ))}
       </View>
 
       <Pressable
@@ -191,8 +134,6 @@ export default function LoginScreen() {
           {callError ? <AppText style={styles.sosSub}>{t('callUnavailable')}</AppText> : null}
         </View>
       </Pressable>
-
-      <BiText text={L('termsNotice')} style={styles.terms} subStyle={styles.termsSub} />
     </AppScreen>
   );
 }
@@ -207,44 +148,25 @@ const styles = StyleSheet.create({
   brandSub: { color: colors.muted, fontSize: 11, lineHeight: 15 },
   heading: { color: colors.brand, fontSize: 28, lineHeight: 40, fontWeight: '700' },
   headingSub: { color: colors.muted, fontSize: 15, lineHeight: 22 },
-  tabs: { flexDirection: 'row', backgroundColor: colors.mint2, borderRadius: 18, padding: 4, gap: 4 },
-  tab: { flex: 1, minHeight: 56, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 8 },
-  tabActive: { backgroundColor: colors.surface },
-  tabText: { color: colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  tabTextActive: { color: colors.brand },
-  tabSub: { fontSize: 10, lineHeight: 14 },
-  block: { gap: 8 },
-  label: { color: colors.text, fontSize: 13, lineHeight: 20, fontWeight: '700' },
-  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  roleChip: {
-    flexGrow: 1, flexBasis: '30%', minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 6,
-  },
-  roleChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  roleChipText: { color: colors.brand, fontSize: 12, fontWeight: '600', flexShrink: 1 },
-  roleChipTextActive: { color: colors.surface },
-  phoneBox: {
-    minHeight: 56, borderRadius: 14, borderWidth: 1.5, borderColor: colors.brand, backgroundColor: colors.surface,
-    flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10,
-  },
-  phoneBoxError: { borderColor: colors.danger },
-  prefix: { backgroundColor: colors.mint2, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  prefixText: { color: colors.brand, fontSize: 15, fontWeight: '700' },
-  phoneInput: { flex: 1, color: colors.text, fontSize: 17, fontFamily: FONT_FAMILIES.medium, paddingVertical: 8 },
-  error: { color: colors.danger, fontSize: 12, lineHeight: 18 },
-  infoCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, backgroundColor: colors.blue },
-  infoTitle: { color: colors.blueText, fontSize: 13, lineHeight: 20, fontWeight: '600' },
-  infoSub: { color: colors.muted, fontSize: 11, lineHeight: 16 },
+  success: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: colors.mint2 },
+  successText: { flex: 1, color: colors.brand, fontSize: 13, lineHeight: 20, fontWeight: '600' },
+  form: { gap: 14 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, backgroundColor: colors.redSoft },
+  errorText: { flex: 1, color: colors.danger, fontSize: 13, lineHeight: 20 },
+  forgot: { alignSelf: 'center', padding: 4 },
+  forgotText: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  line: { flex: 1, height: 1, backgroundColor: colors.border },
+  or: { color: colors.muted, fontSize: 13 },
+  demoCard: { gap: 6, padding: 14, borderRadius: 14, backgroundColor: colors.mint, borderWidth: 1, borderColor: colors.border },
+  demoTitle: { color: colors.brand, fontSize: 13, lineHeight: 20, fontWeight: '700' },
+  demoSub: { fontSize: 10 },
+  demoHint: { color: colors.muted, fontSize: 11, lineHeight: 16, marginBottom: 4 },
+  demoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  demoRole: { flex: 1, color: colors.text, fontSize: 13 },
+  demoPhone: { color: colors.brand, fontSize: 13, fontWeight: '700' },
   sosCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, backgroundColor: colors.redSoft },
   sosTitle: { color: colors.danger, fontSize: 13, lineHeight: 20, fontWeight: '700' },
   sosSub: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   pressed: { opacity: 0.85 },
-  pinBlock: { gap: 12, alignItems: 'center' },
-  pinTitle: { color: colors.brand, fontSize: 22, lineHeight: 32, fontWeight: '700', textAlign: 'center' },
-  pinPhone: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center' },
-  pinError: { color: colors.danger, fontSize: 13, lineHeight: 19 },
-  forgot: { alignSelf: 'center', padding: 6 },
-  forgotText: { color: colors.brand, fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
-  terms: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
-  termsSub: { textAlign: 'center' },
 });

@@ -33,14 +33,16 @@ function AppStack() {
           <Stack.Screen name="splash" />
           <Stack.Screen name="login" />
           <Stack.Screen name="otp" />
-          <Stack.Screen name="profile-setup" />
-          <Stack.Screen name="set-pin" />
+          <Stack.Screen name="signup" />
+          <Stack.Screen name="forgot-password" />
+        </Stack.Protected>
+        <Stack.Protected guard={!signedOut}>
+          <Stack.Screen name="edit-profile" />
         </Stack.Protected>
         <Stack.Protected guard={patient} redirectTo="/splash">
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="assistant" />
           <Stack.Screen name="booking" />
-          <Stack.Screen name="edit-profile" />
           <Stack.Screen name="emergency" />
           <Stack.Screen name="prescription" />
           <Stack.Screen name="report" />

@@ -18,10 +18,7 @@ export default function SplashScreen() {
   const { language, setLanguage, t, L } = useLanguage();
 
   return (
-    <AppScreen
-      contentStyle={styles.content}
-      footer={<View style={styles.flex}><ActionButton label={t('getStarted')} onPress={() => router.push('/login')} /></View>}
-    >
+    <AppScreen contentStyle={styles.content}>
       <View style={styles.bigAlpana}><Alpana size={380} opacity={0.1} /></View>
 
       <View style={styles.brandBlock}>
@@ -63,13 +60,18 @@ export default function SplashScreen() {
         </View>
         <BiText text={L('changeLaterInSettings')} style={styles.changeLater} subStyle={styles.centerSub} />
       </View>
+
+      <View style={styles.actions}>
+        <ActionButton label={t('logIn')} onPress={() => router.push('/login')} />
+        <ActionButton label={t('createAccount')} onPress={() => router.push('/signup')} variant="secondary" />
+      </View>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', gap: 34, paddingBottom: 12 },
+  actions: { gap: 12 },
+  content: { flexGrow: 1, justifyContent: 'center', gap: 28, paddingBottom: 12 },
   bigAlpana: { position: 'absolute', top: 30, alignSelf: 'center' },
   brandBlock: { alignItems: 'center', gap: 14 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

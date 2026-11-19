@@ -15,7 +15,7 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export default function HomeScreen() {
   const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
-  const { profile } = useAuth();
+  const { session } = useAuth();
   const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
   const doctor = findDoctor(queue.doctorId);
   const weekday = WEEKDAYS[language][new Date().getDay()];

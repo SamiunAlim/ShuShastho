@@ -3,39 +3,41 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import colors from '../constants/colors';
 import { useLanguage } from '../context/LanguageContext';
 import { toAsciiDigits } from '../utils/format';
-import { FONT_FAMILIES } from './ui';
+import { AppText, FONT_FAMILIES } from './ui';
 
-export const PIN_LENGTH = 4;
+export const OTP_LENGTH = 6;
+/** Mock one-time code for every demo flow. A real backend would send an SMS. */
+export const DEMO_OTP = '123456';
 
-/** Four boxes over one invisible input (same pattern as the OTP boxes). Digits show as dots. */
-export function PinInput({ value, onChange, error = false, label, autoFocus = true }: {
+/** Six boxes over one invisible input: tapping a box focuses it. */
+export function OtpInput({ value, onChange, label, error = false }: {
   value: string;
-  onChange: (pin: string) => void;
-  error?: boolean;
+  onChange: (code: string) => void;
   label: string;
-  autoFocus?: boolean;
+  error?: boolean;
 }) {
   const { nf } = useLanguage();
-  const complete = value.length === PIN_LENGTH;
+  const complete = value.length === OTP_LENGTH;
   return (
     <View style={styles.boxes}>
-      {Array.from({ length: PIN_LENGTH }, (_, i) => {
+      {Array.from({ length: OTP_LENGTH }, (_, i) => {
         const filled = i < value.length;
-        const active = i === Math.min(value.length, PIN_LENGTH - 1) && !complete;
+        const active = i === Math.min(value.length, OTP_LENGTH - 1) && !complete;
         return (
           <View key={i} style={[styles.box, filled && styles.boxFilled, active && styles.boxActive, error && styles.boxError]}>
-            {filled ? <View style={styles.dot} /> : null}
+            <AppText style={styles.boxText}>{filled ? nf(value[i]) : ''}</AppText>
           </View>
         );
       })}
       <TextInput
         accessibilityLabel={label}
-        value={nf(value)}
-        onChangeText={(text) => onChange(toAsciiDigits(text).replace(/\D/g, '').slice(0, PIN_LENGTH))}
+        value={value}
+        onChangeText={(text) => onChange(toAsciiDigits(text).replace(/\D/g, '').slice(0, OTP_LENGTH))}
         keyboardType="number-pad"
-        secureTextEntry
-        maxLength={PIN_LENGTH}
-        autoFocus={autoFocus}
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
+        maxLength={OTP_LENGTH}
+        autoFocus
         caretHidden
         style={styles.hiddenInput}
       />
@@ -44,14 +46,14 @@ export function PinInput({ value, onChange, error = false, label, autoFocus = tr
 }
 
 const styles = StyleSheet.create({
-  boxes: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
+  boxes: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   box: {
-    width: 56, height: 64, borderRadius: 14, borderWidth: 1, borderColor: colors.border,
+    flex: 1, maxWidth: 52, aspectRatio: 0.9, borderRadius: 12, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
   },
   boxFilled: { borderWidth: 1.5, borderColor: colors.brand },
   boxActive: { borderWidth: 2, borderColor: colors.brand },
   boxError: { borderColor: colors.danger },
-  dot: { width: 14, height: 14, borderRadius: 7, backgroundColor: colors.brand },
+  boxText: { color: colors.text, fontSize: 24, lineHeight: 34, fontWeight: '700' },
   hiddenInput: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, opacity: 0.02, color: 'transparent', fontFamily: FONT_FAMILIES.regular },
 });
