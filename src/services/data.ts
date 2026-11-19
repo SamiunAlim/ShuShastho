@@ -8,12 +8,13 @@ import {
   apiResetPassword,
   apiUpdateMe,
   createAppointment as apiCreateAppointment,
+  type PaymentInfo,
   hasAuthToken,
   isBackendConfigured,
   setAuthToken,
 } from './api';
 import type { Role } from '../context/AuthContext';
-import { normalizePhone } from '../utils/format';
+import { normalizePhone, toIsoDate } from '../utils/format';
 import { setOffline } from './connection';
 import {
   CATALOG_HOSPITALS,
@@ -405,6 +406,8 @@ export type PatientInfo = {
   phone: string;
 };
 
+export type { PaymentInfo, PaymentMethod, PaymentStatus } from './api';
+
 export type Appointment = {
   id: string;
   doctorId: string;
@@ -419,7 +422,11 @@ export type Appointment = {
   fee: number;
   patient: PatientInfo;
   reason: string;
+  /** Missing on appointments saved before payments existed (treated as pay at chamber). */
+  payment?: PaymentInfo;
   status: 'upcoming' | 'cancelled';
+  /** Replaced by a newer booking of the same demo slot; never shown. */
+  hidden?: boolean;
   createdAt: string;
 };
 
@@ -429,8 +436,17 @@ export type CreateAppointmentInput = {
   time: string;
   patient: PatientInfo;
   reason: string;
+  payment: PaymentInfo;
   idempotencyKey: string;
 };
+
+const appointmentListeners = new Set<() => void>();
+
+/** Lets the front desk / admin screens (demo mode) notice a new booking and its payment. */
+export function subscribeAppointments(listener: () => void) {
+  appointmentListeners.add(listener);
+  return () => { appointmentListeners.delete(listener); };
+}
 
 async function readAppointments(): Promise<Appointment[]> {
   try {
@@ -453,7 +469,10 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
         doctorId: doctor.id,
         chamberId: chamber.chamberId,
         date: input.date,
-        paymentMethod: 'cash_at_chamber',
+        paymentMethod: input.payment.method,
+        paymentStatus: input.payment.status,
+        transactionId: input.payment.transactionId,
+        amount: input.payment.amount,
         idempotencyKey: input.idempotencyKey,
       });
       setOffline(false);
@@ -484,16 +503,63 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
     fee: doctor.fee,
     patient: input.patient,
     reason: input.reason,
+    payment: input.payment,
     status: 'upcoming',
     createdAt: new Date().toISOString(),
   };
-  await AsyncStorage.setItem(APPOINTMENTS_KEY, JSON.stringify([appointment, ...existing]));
+  // A new booking of the demo slot (#17) replaces the always-present demo appointment.
+  const supersedes = doctor.id === DEMO.doctorId && serial === DEMO.serial
+    && !existing.some((a) => a.id === DEMO_APPOINTMENT_ID);
+  const stubs = supersedes ? [{ ...demoAppointment(), status: 'cancelled' as const, hidden: true }] : [];
+  await AsyncStorage.setItem(APPOINTMENTS_KEY, JSON.stringify([appointment, ...stubs, ...existing]));
+  appointmentListeners.forEach((listener) => listener());
   return appointment;
 }
 
-/** My appointments, newest booking first. */
+const DEMO_APPOINTMENT_ID = 'apt-demo-17';
+
+/**
+ * The demo story's current booking (Rahim Uddin · Dr. Farhana · #17, today). It is always dated today, and is
+ * only stored once the user cancels it or books a new #17 over it.
+ */
+function demoAppointment(): Appointment {
+  const doctor = findDoctor(DEMO.doctorId);
+  return {
+    id: DEMO_APPOINTMENT_ID,
+    doctorId: doctor.id,
+    hospitalId: doctor.hospitalId,
+    departmentId: doctor.departmentId,
+    chamberId: doctor.chambers[0].chamberId,
+    date: toIsoDate(new Date()),
+    time: DEMO.visitTime24,
+    serial: DEMO.serial,
+    fee: doctor.fee,
+    patient: { forSelf: true, name: DEMO.patient.en, age: '34', gender: 'male', relation: '', phone: '01711234567' },
+    reason: '',
+    payment: { method: 'cash_at_chamber', status: 'pay_at_chamber', amount: doctor.fee },
+    status: 'upcoming',
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/** My appointments: the current demo booking (#17) first, then every booking made in the app, newest first. */
 export async function getMyAppointments(): Promise<Appointment[]> {
-  return readAppointments();
+  const stored = await readAppointments();
+  const visible = stored.filter((a) => !a.hidden);
+  return stored.some((a) => a.id === DEMO_APPOINTMENT_ID) ? visible : [demoAppointment(), ...visible];
+}
+
+/** Cancel a future appointment (this device only; the demo backend keeps its queue unchanged). */
+export async function cancelAppointment(id: string): Promise<void> {
+  const stored = await readAppointments();
+  const found = stored.find((a) => a.id === id);
+  const next = found
+    ? stored.map((a) => (a.id === id ? { ...a, status: 'cancelled' as const } : a))
+    : id === DEMO_APPOINTMENT_ID
+      ? [{ ...demoAppointment(), status: 'cancelled' as const }, ...stored]
+      : stored;
+  await AsyncStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(next));
+  appointmentListeners.forEach((listener) => listener());
 }
 
 export function appointmentTimeLabel(appointment: Pick<Appointment, 'time'>): Localized {

@@ -16,6 +16,8 @@ import { useOptionalAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Alpana } from './Alpana';
 import colors from '../constants/colors';
+import { isBackendConfigured } from '../services/api';
+import { useOffline } from '../services/connection';
 import type { Localized } from '../services/mock';
 
 /** Hind Siliguri ships one file per weight, so fontWeight must be mapped to a family. */
@@ -272,8 +274,11 @@ export function SectionTitle({ title, text, action }: {
   );
 }
 
+/** Only shown while the app is on demo data: no backend configured, or the backend is unreachable. */
 export function DemoNotice({ compact = false }: { compact?: boolean }) {
   const { t } = useLanguage();
+  const offline = useOffline();
+  if (isBackendConfigured() && !offline) return null;
   return (
     <View style={[styles.demoNotice, compact && styles.demoNoticeCompact]}>
       <View style={styles.demoDot} />

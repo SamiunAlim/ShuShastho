@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useId, useRef, useState } from 'react';
+import * as Speech from 'expo-speech';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, Field, ScreenHeader } from '../components/ui';
 import { useLanguage } from '../context/LanguageContext';
+import { useVoiceInput } from '../hooks/useVoiceInput';
 import colors from '../constants/colors';
 import { ApiError, isBackendConfigured, RiskLevel, sendSymptomMessage } from '../services/api';
 import { setOffline, useOffline } from '../services/connection';
@@ -55,6 +58,8 @@ export default function AssistantScreen() {
   const connected = isBackendConfigured() && !offline;
   // In demo mode nothing leaves the device, so consent is only needed with a real backend.
   const consentOk = !connected || consentGiven;
+  const onVoiceText = useCallback((text: string) => setInput((current) => (current ? `${current} ${text}` : text)), []);
+  const voice = useVoiceInput(language, onVoiceText);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -160,7 +165,39 @@ export default function AssistantScreen() {
           {error ? <Card style={styles.errorCard}><AppText style={styles.errorText}>{error}</AppText></Card> : null}
         </ScrollView>
         <View style={styles.composer}>
-          <Field value={input} onChangeText={setInput} placeholder={t('messagePlaceholder')} />
+          {voice.state !== 'idle' && (
+            <View style={styles.voiceStatus}>
+              <PulseDot />
+              {voice.state === 'listening'
+                ? <BiText text={L('listening')} style={styles.voiceStatusText} />
+                : <AppText style={styles.voiceStatusText}>{t('transcribing')}</AppText>}
+            </View>
+          )}
+          {voice.error ? (
+            voice.error === 'permission'
+              ? <AppText style={styles.voiceError}>{t('micPermission')}</AppText>
+              : <BiText text={L('micRetry')} style={styles.voiceError} />
+          ) : null}
+          <View style={styles.inputRow}>
+            <View style={styles.inputFlex}>
+              <Field value={input} onChangeText={setInput} placeholder={t('messagePlaceholder')} />
+            </View>
+            {voice.supported && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={voice.state === 'listening' ? t('micStop') : t('micStart')}
+                onPress={() => { void voice.toggle(); }}
+                disabled={voice.state === 'transcribing'}
+                style={[styles.micButton, voice.state === 'listening' && styles.micButtonActive]}
+              >
+                <Ionicons
+                  name={voice.state === 'listening' ? 'stop' : 'mic'}
+                  size={22}
+                  color={voice.state === 'listening' ? colors.surface : colors.brand}
+                />
+              </Pressable>
+            )}
+          </View>
           {connected && (
             <Pressable
               accessibilityRole="checkbox"
@@ -178,6 +215,53 @@ export default function AssistantScreen() {
         </View>
       </KeyboardAvoidingView>
     </AppScreen>
+  );
+}
+
+function PulseDot() {
+  const [pulse] = useState(() => new Animated.Value(0.3));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return <Animated.View style={[styles.pulseDot, { opacity: pulse }]} />;
+}
+
+function SpeakButton({ text }: { text: string }) {
+  const { language, t } = useLanguage();
+  const [speaking, setSpeaking] = useState(false);
+  useEffect(() => () => { Speech.stop(); }, []);
+
+  function toggle() {
+    if (speaking) {
+      Speech.stop();
+      setSpeaking(false);
+      return;
+    }
+    Speech.stop();
+    setSpeaking(true);
+    Speech.speak(text, {
+      language: language === 'bn' ? 'bn-BD' : 'en-US',
+      onDone: () => setSpeaking(false),
+      onStopped: () => setSpeaking(false),
+      onError: () => setSpeaking(false),
+    });
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={speaking ? t('stopSpeaking') : t('speakReply')}
+      onPress={toggle}
+      style={styles.speakButton}
+    >
+      <Ionicons name={speaking ? 'stop-circle-outline' : 'volume-high-outline'} size={18} color={colors.brand} />
+      <AppText style={styles.speakText}>{speaking ? t('stopSpeaking') : t('speakReply')}</AppText>
+    </Pressable>
   );
 }
 
@@ -222,6 +306,7 @@ function ChatBubble({ message }: { message: Message }) {
             variant="secondary"
           />
         ) : null}
+        {isAssistant && text ? <SpeakButton text={text} /> : null}
         {isAssistant && message.id !== 'welcome' ? (
           <AppText style={styles.notSubstitute}>{t('notSubstitute')}</AppText>
         ) : null}
@@ -261,6 +346,16 @@ const styles = StyleSheet.create({
   errorCard: { backgroundColor: colors.yellow, borderColor: colors.yellow, padding: 11 },
   errorText: { color: colors.yellowText, fontSize: 12, lineHeight: 18 },
   composer: { paddingHorizontal: 16, paddingVertical: 12, gap: 8, backgroundColor: colors.canvas },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inputFlex: { flex: 1 },
+  micButton: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: colors.brand, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  micButtonActive: { backgroundColor: colors.danger, borderColor: colors.danger },
+  voiceStatus: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  voiceStatusText: { color: colors.danger, fontSize: 13, fontWeight: '600' },
+  voiceError: { color: colors.yellowText, fontSize: 12, lineHeight: 18 },
+  pulseDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
+  speakButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingVertical: 2 },
+  speakText: { color: colors.brand, fontSize: 12 },
   consentRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 1, borderColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
   checkboxChecked: { backgroundColor: colors.brand, borderColor: colors.brand },
