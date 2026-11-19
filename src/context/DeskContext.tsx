@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { callNextPatient, checkInAppointment, isBackendConfigured, markNoShow, restoreAppointment, type PaymentInfo, type QueueResponse } from '../services/api';
 import { setOffline } from '../services/connection';
-import { getMyAppointments, subscribeAppointments } from '../services/data';
+import { getMyAppointments, subscribeAppointments, type Appointment } from '../services/data';
 import { DEMO, DEMO_QUEUE, DemoQueuePatient, Localized } from '../services/mock';
 import { useQueue } from './QueueContext';
 
@@ -47,9 +47,9 @@ export function DeskProvider({ children }: React.PropsWithChildren) {
   const queue = useQueue();
   const [entries, setEntries] = useState<Entry[]>(initialEntries);
   // Demo mode: the patient's own booking (#17) carries the payment chosen in the booking wizard.
-  const [myPayment, setMyPayment] = useState<PaymentInfo | undefined>();
+  const [myAppointments, setMyAppointments] = useState<Appointment[]>([]);
   useEffect(() => {
-    const load = () => { getMyAppointments().then((list) => setMyPayment(list[0]?.payment)); };
+    const load = () => { getMyAppointments().then(setMyAppointments); };
     load();
     return subscribeAppointments(load);
   }, []);
@@ -79,6 +79,11 @@ export function DeskProvider({ children }: React.PropsWithChildren) {
     }));
     return [...fromServer, ...entries.filter((e) => e.walkIn)];
   }, [remote, entries]);
+
+  const myPayment = useMemo(
+    () => myAppointments.find((a) => a.doctorId === queue.doctorId && a.serial === queue.serial && a.status !== 'cancelled')?.payment,
+    [myAppointments, queue.doctorId, queue.serial],
+  );
 
   const patients = useMemo<DeskPatient[]>(
     () =>

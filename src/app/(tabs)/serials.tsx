@@ -1,36 +1,87 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader } from '../../components/ui';
+import type { TranslationKey } from '../../constants/i18n';
 import { useQueuePoll } from '../../hooks/usePolling';
 import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
-import { getMyAppointments, type Appointment } from '../../services/data';
+import { cancelAppointment, getMyAppointments, subscribeAppointments, type Appointment } from '../../services/data';
+import { useDesk } from '../../context/DeskContext';
 import { DEMO, findDepartment, findDoctor, findHospital, timeLabel, type Localized } from '../../services/mock';
-import { formatTaka, MONTHS_SHORT, WEEKDAYS } from '../../utils/format';
+import { addDays, formatTaka, MONTHS_SHORT, toIsoDate, WEEKDAYS } from '../../utils/format';
 import { METHOD_NAME_KEY } from '../../utils/payment';
 
 type StepState = 'done' | 'current' | 'upcoming';
+type ApptStatus = 'booked' | 'checkedIn' | 'done' | 'cancelled';
+
+const STATUS_STYLE: Record<ApptStatus, { label: TranslationKey; bg: string; fg: string }> = {
+  booked: { label: 'stBooked', bg: colors.blue, fg: colors.blueText },
+  checkedIn: { label: 'stCheckedIn', bg: colors.mint2, fg: colors.brand },
+  done: { label: 'stDone', bg: colors.grey, fg: colors.muted },
+  cancelled: { label: 'stCancelled', bg: colors.redSoft, fg: colors.danger },
+};
+
+const byWhen = (a: Appointment, b: Appointment) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
 
 export default function SerialsScreen() {
   const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
+  function shortDate(a: Appointment) {
+    const [, m, d] = a.date.split('-').map(Number);
+    const label = a.date === toIsoDate(new Date()) ? t('today') : a.date === toIsoDate(addDays(new Date(), 1)) ? t('tomorrow') : `${nf(d)} ${MONTHS_SHORT[language][m - 1]}`;
+    return `${label} · ${timeLabel(a.time)[language]}`;
+  }
   useQueuePoll();
   const doctor = findDoctor(queue.doctorId);
   const journey = useJourney();
   const [consulting, setConsulting] = useState(false);
+  const desk = useDesk();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  // Reload the list whenever the tab is shown (e.g. right after booking).
+  const [confirmCancel, setConfirmCancel] = useState('');
+  // Reload the list whenever the tab is shown (e.g. right after booking) and after any change.
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getMyAppointments().then((list) => active && setAppointments(list));
-      return () => { active = false; };
+      const load = () => { getMyAppointments().then((list) => active && setAppointments(list)); };
+      load();
+      const unsubscribe = subscribeAppointments(load);
+      return () => { active = false; unsubscribe(); };
     }, []),
   );
+
+  const today = toIsoDate(new Date());
+  const isTracked = (a: Appointment) => a.doctorId === queue.doctorId && a.serial === queue.serial;
+
+  function statusOf(a: Appointment): ApptStatus {
+    if (a.status === 'cancelled') return 'cancelled';
+    if (a.date < today) return 'done';
+    if (isTracked(a)) {
+      if (journey.consulted || queue.nowServing > a.serial) return 'done';
+      const atDesk = a.doctorId === DEMO.doctorId && desk.patients.some((p) => p.serial === a.serial && p.checkedIn);
+      if (atDesk || queue.nowServing >= a.serial) return 'checkedIn';
+    }
+    return 'booked';
+  }
+
+  // Upcoming (today or later, not cancelled), soonest first. The live queue card follows one of them.
+  const upcoming = appointments.filter((a) => a.status !== 'cancelled' && a.date >= today).sort(byWhen);
+  const selected = upcoming.find(isTracked);
+  const firstUpcoming = upcoming[0];
+  const trackedKey = `${queue.doctorId}#${queue.serial}`;
+  useEffect(() => {
+    // Nothing tracked (e.g. the tracked serial was cancelled): follow the next upcoming one.
+    if (!selected && firstUpcoming) queue.bookSerial({ doctorId: firstUpcoming.doctorId, serial: firstUpcoming.serial });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, firstUpcoming?.id, trackedKey]);
+
+  async function cancel(id: string) {
+    setConfirmCancel('');
+    await cancelAppointment(id);
+  }
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -61,6 +112,36 @@ export default function SerialsScreen() {
       }
     >
       <DemoNotice compact />
+      <NewSerialButton />
+      {upcoming.length > 1 ? (
+        <View style={styles.selector}>
+          <BiText text={L('switchSerial')} style={styles.selectorTitle} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectorRow}>
+            {upcoming.map((a) => {
+              const active = isTracked(a);
+              return (
+                <Pressable
+                  key={a.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => queue.bookSerial({ doctorId: a.doctorId, serial: a.serial })}
+                  style={[styles.selectorChip, active && styles.selectorChipActive]}
+                >
+                  <AppText style={[styles.selectorText, active && styles.selectorTextActive]}>
+                    #{nf(a.serial)} · {findDoctor(a.doctorId).name[language]}
+                  </AppText>
+                  <AppText style={[styles.selectorSub, active && styles.selectorTextActive]}>{shortDate(a)}</AppText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+      {!selected ? (
+        <Card style={styles.infoCard}>
+          <AppText style={styles.meta}>{t('noUpcomingSerial')}</AppText>
+        </Card>
+      ) : (
       <KanthaCard style={styles.queueCard}>
         <View style={styles.queueHeader}>
           <View style={styles.flex}>
@@ -130,17 +211,26 @@ export default function SerialsScreen() {
         </View>
         <View style={styles.notice}><AppText style={styles.noticeText}>{t('queueEstimateNotice')}</AppText></View>
       </KanthaCard>
+      )}
       <Card style={styles.infoCard}>
         <BiText text={L('checkInTitle')} style={styles.infoTitle} />
         <AppText style={styles.meta}>{t('checkInDescription')}</AppText>
       </Card>
 
       <BiText text={L('bkMyAppointments')} style={styles.listTitle} />
-      {appointments.length === 0 ? <AppText style={styles.meta}>{t('bkNoAppointments')}</AppText> : null}
-      {appointments.map((appointment) => {
+      {appointments.length === 0 ? (
+        <Card style={styles.infoCard}>
+          <AppText style={styles.meta}>{t('bkNoAppointments')}</AppText>
+          <ActionButton label={t('newSerial')} onPress={() => router.push('/new-serial')} />
+        </Card>
+      ) : null}
+      {[...upcoming, ...appointments.filter((a) => !upcoming.includes(a)).sort((a, b) => byWhen(b, a))].map((appointment) => {
         const apptDoctor = findDoctor(appointment.doctorId);
         const [y, m, d] = appointment.date.split('-').map(Number);
         const when = `${WEEKDAYS[language][new Date(y, m - 1, d).getDay()]}, ${nf(d)} ${MONTHS_SHORT[language][m - 1]} · ${timeLabel(appointment.time)[language]}`;
+        const status = statusOf(appointment);
+        const chip = STATUS_STYLE[status];
+        const canCancel = status === 'booked';
         const patientName = appointment.patient.forSelf
           ? null
           : tf('apptFor', { name: appointment.patient.name });
@@ -157,7 +247,12 @@ export default function SerialsScreen() {
                 <AppText style={styles.apptSerialText}>#{nf(appointment.serial)}</AppText>
               </View>
             </View>
-            <AppText style={styles.apptWhen}>{when}</AppText>
+            <View style={styles.apptTop}>
+              <View style={styles.flex}><AppText style={styles.apptWhen}>{when}</AppText></View>
+              <View style={[styles.statusChip, { backgroundColor: chip.bg }]}>
+                <AppText style={[styles.statusText, { color: chip.fg }]}>{t(chip.label)}</AppText>
+              </View>
+            </View>
             {patientName ? <AppText style={styles.meta}>{patientName}</AppText> : null}
             {appointment.payment?.status === 'paid' ? (
               <View style={styles.paidRow}>
@@ -170,10 +265,42 @@ export default function SerialsScreen() {
             ) : (
               <AppText style={styles.meta}>{tf('payAtChamber', { amount: formatTaka(appointment.payment?.amount ?? appointment.fee) })}</AppText>
             )}
+            {canCancel ? (
+              confirmCancel === appointment.id ? (
+                <View style={styles.cancelRow}>
+                  <AppText style={styles.cancelAsk}>{t('cancelAsk')}</AppText>
+                  <Pressable accessibilityRole="button" onPress={() => { void cancel(appointment.id); }} style={[styles.cancelBtn, styles.cancelBtnDanger]}>
+                    <AppText style={styles.cancelBtnDangerText}>{t('cancelYes')}</AppText>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => setConfirmCancel('')} style={styles.cancelBtn}>
+                    <AppText style={styles.cancelBtnText}>{t('cancelKeep')}</AppText>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable accessibilityRole="button" onPress={() => setConfirmCancel(appointment.id)} style={[styles.cancelBtn, styles.cancelStart]}>
+                  <AppText style={styles.cancelBtnText}>{t('cancelAppt')}</AppText>
+                </Pressable>
+              )
+            ) : null}
           </Card>
         );
       })}
     </AppScreen>
+  );
+}
+
+/** Prominent entry to the quick booking flow (also used by the empty state). */
+function NewSerialButton() {
+  const { L } = useLanguage();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push('/new-serial')}
+      style={({ pressed }) => [styles.newSerial, pressed && { opacity: 0.85 }]}
+    >
+      <View style={styles.newSerialIcon}><Ionicons name="add" size={26} color={colors.brand} /></View>
+      <BiText text={L('newSerial')} style={styles.newSerialText} hideSub />
+    </Pressable>
   );
 }
 
@@ -218,6 +345,26 @@ const styles = StyleSheet.create({
   noticeText: { color: colors.yellowText, fontSize: 11, lineHeight: 17 },
   infoCard: { gap: 6 },
   listTitle: { color: colors.text, fontSize: 16, lineHeight: 24, fontWeight: '700', marginTop: 4 },
+  newSerial: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 56, borderRadius: 16, backgroundColor: colors.brand, paddingHorizontal: 16 },
+  newSerialIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  newSerialText: { color: colors.surface, fontSize: 16, lineHeight: 24, fontWeight: '700' },
+  selector: { gap: 8 },
+  selectorTitle: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+  selectorRow: { gap: 8, paddingRight: 8 },
+  selectorChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  selectorChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  selectorText: { color: colors.text, fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  selectorSub: { color: colors.muted, fontSize: 11, lineHeight: 16 },
+  selectorTextActive: { color: colors.surface },
+  statusChip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
+  statusText: { fontSize: 11, fontWeight: '700' },
+  cancelStart: { alignSelf: 'flex-start' },
+  cancelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  cancelAsk: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  cancelBtn: { minHeight: 34, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  cancelBtnText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  cancelBtnDanger: { backgroundColor: colors.danger, borderColor: colors.danger },
+  cancelBtnDangerText: { color: colors.surface, fontSize: 12, fontWeight: '700' },
   apptCard: { gap: 6 },
   paidRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', backgroundColor: colors.mint2, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
   paidText: { color: colors.brand, fontSize: 12, lineHeight: 18, fontWeight: '600' },
