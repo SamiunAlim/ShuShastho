@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth, clinic
+from . import auth, clinic, emergency
 from .db import get_db
 from .seed import seed
 
@@ -31,6 +31,7 @@ async def http_error(_: Request, exc: HTTPException):
 
 app.include_router(auth.router)
 app.include_router(clinic.router)
+app.include_router(emergency.router)
 
 
 @app.get("/health")
