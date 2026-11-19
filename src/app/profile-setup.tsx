@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, FONT_FAMILIES, ScreenHeader } from '../components/ui';
 import colors from '../constants/colors';
 import type { TranslationKey } from '../constants/i18n';
 import { Profile, useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { toAsciiDigits } from '../utils/format';
+import { ageFromDob, formatDobInput, toAsciiDigits } from '../utils/format';
+import { goBack } from '../utils/navigation';
 
 const GENDERS: { key: Exclude<Profile['gender'], ''>; label: TranslationKey }[] = [
   { key: 'male', label: 'pfMale' },
@@ -26,10 +28,18 @@ const CHRONIC: { key: string; label: TranslationKey }[] = [
 
 export default function ProfileSetupScreen() {
   const { t, L, nf } = useLanguage();
-  const { saveProfile, signOut } = useAuth();
+  const { pending, setPendingProfile, clearPending } = useAuth();
+
+  // Opened without passing OTP (refresh / deep link): start again from login.
+  useEffect(() => {
+    if (!pending) router.replace('/login');
+  }, [pending]);
 
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
+  const [dob, setDob] = useState('');
+  const [district, setDistrict] = useState('');
+  const [area, setArea] = useState('');
   const [gender, setGender] = useState<Profile['gender']>('');
   const [bloodGroup, setBloodGroup] = useState('');
   const [allergies, setAllergies] = useState('');
@@ -39,13 +49,24 @@ export default function ProfileSetupScreen() {
   const [touched, setTouched] = useState(false);
 
   const nameOk = name.trim().length > 0;
-  const ageNumber = Number(age);
-  const ageOk = age === '' || (ageNumber > 0 && ageNumber < 120);
+  const dobAge = ageFromDob(dob);
+  const dobOk = dob === '' || dobAge !== null;
+  const ageNumber = Number(dobAge ?? age);
+  const ageOk = dobAge !== null || age === '' || (ageNumber > 0 && ageNumber < 120);
 
   const submit = () => {
     setTouched(true);
-    if (!nameOk || !ageOk || !consent) return;
-    saveProfile({ name: name.trim(), age, gender, bloodGroup, emergencyContact: contact, allergies: allergies.trim(), chronic, consent });
+    if (!nameOk || !ageOk || !dobOk || !consent) return;
+    setPendingProfile({
+      name: name.trim(), age: dobAge !== null ? String(dobAge) : age, dob, gender, district: district.trim(), area: area.trim(),
+      bloodGroup, emergencyContact: contact, allergies: allergies.trim(), chronic, consent,
+    });
+    router.push('/set-pin');
+  };
+
+  const cancel = () => {
+    clearPending();
+    goBack('/login');
   };
 
   const toggleChronic = (key: string) =>
@@ -53,7 +74,7 @@ export default function ProfileSetupScreen() {
 
   return (
     <AppScreen
-      header={<ScreenHeader title={L('profileSetupTitle')} />}
+      header={<ScreenHeader title={L('profileSetupTitle')} onBack={cancel} />}
       contentStyle={styles.content}
       footer={<View style={styles.flex}><ActionButton label={t('pfSave')} onPress={submit} /></View>}
     >
@@ -75,13 +96,31 @@ export default function ProfileSetupScreen() {
           <BiText text={L('pfAge')} style={styles.label} />
           <TextInput
             accessibilityLabel={t('pfAge')}
-            value={nf(age)}
+            value={nf(dobAge !== null ? String(dobAge) : age)}
+            editable={dobAge === null}
             onChangeText={(text) => setAge(toAsciiDigits(text).replace(/\D/g, '').slice(0, 3))}
             keyboardType="number-pad"
             style={[styles.input, touched && !ageOk && styles.inputError]}
           />
           {touched && !ageOk ? <AppText style={styles.error}>{t('pfAgeInvalid')}</AppText> : null}
         </View>
+        <View style={[styles.block, styles.flex]}>
+          <BiText text={L('pfDob')} style={styles.label} />
+          <TextInput
+            accessibilityLabel={t('pfDob')}
+            value={nf(dob)}
+            onChangeText={(text) => setDob(formatDobInput(text))}
+            keyboardType="number-pad"
+            placeholder={t('pfDobHint')}
+            placeholderTextColor={colors.muted}
+            maxLength={10}
+            style={[styles.input, touched && !dobOk && styles.inputError]}
+          />
+          {touched && !dobOk ? <AppText style={styles.error}>{t('pfDobInvalid')}</AppText> : null}
+        </View>
+      </View>
+
+      <View style={styles.row}>
         <View style={[styles.block, styles.genderBlock]}>
           <BiText text={L('pfGender')} style={styles.label} />
           <View style={styles.chips}>
@@ -89,6 +128,31 @@ export default function ProfileSetupScreen() {
               <Chip key={g.key} label={t(g.label)} active={gender === g.key} onPress={() => setGender(g.key)} />
             ))}
           </View>
+        </View>
+      </View>
+
+      <View style={styles.row}>
+        <View style={[styles.block, styles.flex]}>
+          <BiText text={L('pfDistrict')} style={styles.label} />
+          <TextInput
+            accessibilityLabel={t('pfDistrict')}
+            value={district}
+            onChangeText={setDistrict}
+            placeholder={t('pfDistrictHint')}
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+          />
+        </View>
+        <View style={[styles.block, styles.flex]}>
+          <BiText text={L('pfArea')} style={styles.label} />
+          <TextInput
+            accessibilityLabel={t('pfArea')}
+            value={area}
+            onChangeText={setArea}
+            placeholder={t('pfAreaHint')}
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+          />
         </View>
       </View>
 
@@ -150,9 +214,6 @@ export default function ProfileSetupScreen() {
         </View>
       </Pressable>
 
-      <Pressable accessibilityRole="button" onPress={signOut} hitSlop={8} style={styles.logout}>
-        <AppText style={styles.logoutText}>{t('logOut')}</AppText>
-      </Pressable>
     </AppScreen>
   );
 }
@@ -176,7 +237,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.muted, fontSize: 13, lineHeight: 20 },
   block: { gap: 6 },
   row: { flexDirection: 'row', gap: 12 },
-  genderBlock: { flex: 2 },
+  genderBlock: { flex: 1 },
   label: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '600' },
   input: {
     minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,

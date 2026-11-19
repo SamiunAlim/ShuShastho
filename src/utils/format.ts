@@ -38,3 +38,23 @@ export function toIsoDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
 }
+
+/** Types "01012000" → "01/01/2000" (digits only, slashes added for the user). */
+export function formatDobInput(text: string): string {
+  const digits = toAsciiDigits(text).replace(/\D/g, '').slice(0, 8);
+  const parts = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean);
+  return parts.join('/');
+}
+
+/** Age in years from "DD/MM/YYYY", or null when the date is invalid or in the future. */
+export function ageFromDob(dob: string, today: Date = new Date()): number | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob);
+  if (!match) return null;
+  const [day, month, year] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  if (date > today) return null;
+  let age = today.getFullYear() - year;
+  if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+  return age >= 0 && age < 120 ? age : null;
+}

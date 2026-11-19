@@ -3,10 +3,11 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Alpana } from '../components/Alpana';
+import { PinInput, PIN_LENGTH } from '../components/PinInput';
 import { ActionButton, AppScreen, AppText, BiText, FONT_FAMILIES, LanguagePill, Logo } from '../components/ui';
 import colors from '../constants/colors';
 import { ROLE_META, STAFF_ROLES } from '../constants/roles';
-import type { Role } from '../context/AuthContext';
+import { useAuth, type Role } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { DEMO_STAFF } from '../services/mock';
 import { call999 } from '../utils/emergency';
@@ -18,12 +19,38 @@ type Tab = 'patient' | 'staff';
 const MIN_PHONE_DIGITS = 6;
 
 export default function LoginScreen() {
-  const { language, t, L, nf } = useLanguage();
+  const { account, loginWithPin } = useAuth();
+  const { language, t, tf, L, nf } = useLanguage();
   const [tab, setTab] = useState<Tab>('patient');
   const [staffRole, setStaffRole] = useState<Role>('doctor');
   const [phone, setPhone] = useState(DEMO_STAFF.phone);
   const [touched, setTouched] = useState(false);
   const [callError, setCallError] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinWrong, setPinWrong] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  // A patient who already registered on this device logs in with phone + PIN (no OTP).
+  const pinMode = tab === 'patient' && account !== null && !forgot;
+
+  const submitPin = async (value: string) => {
+    if (checking) return;
+    setChecking(true);
+    const ok = await loginWithPin(value);
+    // On success the session changes and the root layout leaves this screen.
+    if (!ok) {
+      setPinWrong(true);
+      setPin('');
+      setChecking(false);
+    }
+  };
+
+  const onPinChange = (value: string) => {
+    setPinWrong(false);
+    setPin(value);
+    if (value.length === PIN_LENGTH) submitPin(value);
+  };
 
   const valid = phone.length >= MIN_PHONE_DIGITS;
   const role: Role = tab === 'patient' ? 'patient' : staffRole;
@@ -98,6 +125,15 @@ export default function LoginScreen() {
         </View>
       ) : null}
 
+      {pinMode ? (
+        <View style={styles.pinBlock}>
+          <BiText text={L('pinLoginTitle')} style={styles.pinTitle} subStyle={styles.headingSub} />
+          <AppText style={styles.pinPhone}>{tf('pinLoggingAs', { phone: account?.phone ?? '' })}</AppText>
+          <AppText style={styles.label}>{t('pinEnter')}</AppText>
+          <PinInput value={pin} onChange={onPinChange} error={pinWrong} label={t('pinEnter')} />
+          {pinWrong ? <AppText style={styles.pinError}>{t('pinWrong')}</AppText> : null}
+        </View>
+      ) : (
       <View style={styles.block}>
         <BiText text={L('mobileNumber')} style={styles.label} />
         <View style={[styles.phoneBox, touched && !valid && styles.phoneBoxError]}>
@@ -117,8 +153,18 @@ export default function LoginScreen() {
         </View>
         {touched && !valid ? <AppText style={styles.error}>{t('phoneInvalid')}</AppText> : null}
       </View>
+      )}
 
-      <ActionButton label={language === 'bn' ? `${t('sendOtp')} · ${L('sendOtp').en}` : t('sendOtp')} onPress={sendOtp} />
+      {pinMode ? (
+        <>
+          <ActionButton label={t('pinLogin')} onPress={() => submitPin(pin)} disabled={pin.length < PIN_LENGTH || checking} />
+          <Pressable accessibilityRole="button" onPress={() => { setForgot(true); setPhone(''); }} hitSlop={8} style={styles.forgot}>
+            <AppText style={styles.forgotText}>{t('pinForgot')}</AppText>
+          </Pressable>
+        </>
+      ) : (
+        <ActionButton label={language === 'bn' ? `${t('sendOtp')} · ${L('sendOtp').en}` : t('sendOtp')} onPress={sendOtp} />
+      )}
 
       <View style={styles.infoCard}>
         <Ionicons name="shield-checkmark-outline" size={22} color={colors.blueText} />
@@ -193,6 +239,12 @@ const styles = StyleSheet.create({
   sosTitle: { color: colors.danger, fontSize: 13, lineHeight: 20, fontWeight: '700' },
   sosSub: { color: colors.muted, fontSize: 11, lineHeight: 16 },
   pressed: { opacity: 0.85 },
+  pinBlock: { gap: 12, alignItems: 'center' },
+  pinTitle: { color: colors.brand, fontSize: 22, lineHeight: 32, fontWeight: '700', textAlign: 'center' },
+  pinPhone: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center' },
+  pinError: { color: colors.danger, fontSize: 13, lineHeight: 19 },
+  forgot: { alignSelf: 'center', padding: 6 },
+  forgotText: { color: colors.brand, fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' },
   terms: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
   termsSub: { textAlign: 'center' },
 });

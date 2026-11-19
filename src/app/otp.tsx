@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Alpana } from '../components/Alpana';
@@ -13,6 +13,7 @@ import { goBack } from '../utils/navigation';
 
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 42;
+const PATIENT_DEMO_CODE = '123456';
 
 function maskPhone(phone: string): string {
   const national = phone.replace(/^0/, '');
@@ -22,13 +23,14 @@ function maskPhone(phone: string): string {
 
 export default function OtpScreen() {
   const { t, L, nf, language } = useLanguage();
-  const { signIn } = useAuth();
+  const { signIn, startPatientAuth } = useAuth();
   const params = useLocalSearchParams<{ phone?: string; role?: string }>();
   const phone = typeof params.phone === 'string' ? params.phone : '';
   const role: Role = ROLES.find((r) => r === params.role) ?? 'patient';
 
   const [code, setCode] = useState('');
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const [wrong, setWrong] = useState(false);
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -37,10 +39,20 @@ export default function OtpScreen() {
   }, [seconds]);
 
   const complete = code.length === CODE_LENGTH;
-  // Mock verification: any 6 digits work. A real backend would check the code here.
+  // Mock verification. Patients need the demo code 123456; staff accept any 6 digits.
+  // A real backend would check the code here.
   const verify = () => {
     if (!complete) return;
-    signIn({ role, phone });
+    if (role !== 'patient') {
+      signIn({ role, phone });
+      return;
+    }
+    if (code !== PATIENT_DEMO_CODE) {
+      setWrong(true);
+      return;
+    }
+    // New phone → profile setup then PIN; the saved phone (forgot PIN) → just a new PIN.
+    router.push(startPatientAuth(phone) === 'reset' ? '/set-pin' : '/profile-setup');
   };
 
   const time = `0:${String(seconds).padStart(2, '0')}`;
@@ -85,7 +97,10 @@ export default function OtpScreen() {
           <TextInput
             accessibilityLabel={t('otpTitle')}
             value={code}
-            onChangeText={(text) => setCode(toAsciiDigits(text).replace(/\D/g, '').slice(0, CODE_LENGTH))}
+            onChangeText={(text) => {
+              setWrong(false);
+              setCode(toAsciiDigits(text).replace(/\D/g, '').slice(0, CODE_LENGTH));
+            }}
             keyboardType="number-pad"
             textContentType="oneTimeCode"
             autoComplete="sms-otp"
@@ -111,7 +126,8 @@ export default function OtpScreen() {
             <AppText style={styles.resendLink}>{t('otpResend')}</AppText>
           </Pressable>
         )}
-        <AppText style={styles.demoHint}>{t('otpDemoHint')}</AppText>
+        {wrong ? <AppText style={styles.wrong}>{t('otpWrong')}</AppText> : null}
+        <AppText style={styles.demoHint}>{t(role === 'patient' ? 'otpDemoHintPatient' : 'otpDemoHint')}</AppText>
       </View>
 
       <ActionButton
@@ -172,6 +188,7 @@ const styles = StyleSheet.create({
   resendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   resend: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   resendLink: { color: colors.brand, fontSize: 13, fontWeight: '700' },
+  wrong: { color: colors.danger, fontSize: 12, lineHeight: 18 },
   demoHint: { color: colors.yellowText, fontSize: 11, lineHeight: 16 },
   afterCard: { gap: 10, backgroundColor: colors.mint },
   afterTitle: { color: colors.brand, fontSize: 13, lineHeight: 20, fontWeight: '700' },

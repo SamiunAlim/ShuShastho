@@ -23,8 +23,7 @@ function AppStack() {
 
   const role = session?.role;
   const signedOut = !session;
-  const needsProfile = role === 'patient' && !session?.profileDone;
-  const patient = role === 'patient' && !needsProfile;
+  const patient = role === 'patient';
 
   return (
     <>
@@ -34,9 +33,8 @@ function AppStack() {
           <Stack.Screen name="splash" />
           <Stack.Screen name="login" />
           <Stack.Screen name="otp" />
-        </Stack.Protected>
-        <Stack.Protected guard={needsProfile} redirectTo="/splash">
           <Stack.Screen name="profile-setup" />
+          <Stack.Screen name="set-pin" />
         </Stack.Protected>
         <Stack.Protected guard={patient} redirectTo="/splash">
           <Stack.Screen name="(tabs)" />
