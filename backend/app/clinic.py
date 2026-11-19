@@ -9,6 +9,9 @@ from .schemas import AppointmentIn
 router = APIRouter(prefix="/v1", tags=["clinic"])
 
 
+DEFAULT_FEE = 800
+
+
 def _err(status: int, message: str):
     return HTTPException(status, detail={"error": {"message": message}})
 
@@ -31,6 +34,10 @@ def _item(doc: dict, now_serving: int) -> dict:
         "appointmentId": doc["_id"], "serialNumber": serial, "patientName": doc["patientName"],
         "phone": doc["phone"], "age": doc["age"], "summary": doc["summary"],
         "checkedIn": doc["checkedIn"], "noShow": doc.get("noShow", False), "status": status,
+        "paymentMethod": doc.get("paymentMethod", "cash_at_chamber"),
+        "paymentStatus": doc.get("paymentStatus", "pay_at_chamber"),
+        "transactionId": doc.get("transactionId"),
+        "amount": doc.get("amount", DEFAULT_FEE),
     }
 
 
@@ -61,10 +68,18 @@ def create_appointment(body: AppointmentIn, idempotency_key: str | None = Header
         if existing:
             return _confirmation(existing)
 
+    amount = doctor.get("fee", DEFAULT_FEE)
+    if body.amount is not None and body.amount != amount:
+        raise _err(422, "Amount does not match the consultation fee")
+    payment = {"paymentMethod": body.paymentMethod, "paymentStatus": body.paymentStatus,
+               "transactionId": body.transactionId, "amount": amount}
+    if body.paymentStatus == "paid":
+        payment["paidAt"] = datetime.now().isoformat(timespec="seconds")
+
     # Demo story: the first booking claims the seeded slot #17 (Rahim Uddin).
     doc = db.queue.find_one_and_update(
         {"doctorId": body.doctorId, "demoSlot": True},
-        {"$set": {"idempotencyKey": idempotency_key, "date": body.date}, "$unset": {"demoSlot": ""}},
+        {"$set": {"idempotencyKey": idempotency_key, "date": body.date, **payment}, "$unset": {"demoSlot": ""}},
         return_document=ReturnDocument.AFTER,
     )
     if doc is None:
@@ -75,7 +90,7 @@ def create_appointment(body: AppointmentIn, idempotency_key: str | None = Header
             "chamberId": body.chamberId, "serialNumber": serial,
             "patientName": {"en": "Rahim Uddin", "bn": "রহিম উদ্দিন"}, "phone": "1711234567", "age": 34,
             "summary": {"en": "New booking", "bn": "নতুন বুকিং"}, "checkedIn": False, "noShow": False,
-            "paymentMethod": body.paymentMethod, "idempotencyKey": idempotency_key, "date": body.date,
+            **payment, "idempotencyKey": idempotency_key, "date": body.date,
         }
         db.queue.insert_one(doc)
     return _confirmation(doc)

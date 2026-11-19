@@ -87,7 +87,7 @@ export const DEMO_QUEUE: DemoQueuePatient[] = [
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-export type Hospital = { id: string; name: Localized; area: Localized; address: Localized };
+export type Hospital = { id: string; name: Localized; area: Localized; address: Localized; lat: number; lng: number };
 
 export const CATALOG_HOSPITALS: Hospital[] = [
   {
@@ -95,18 +95,24 @@ export const CATALOG_HOSPITALS: Hospital[] = [
     name: DEMO.hospital,
     area: { en: 'Dhanmondi, Dhaka', bn: 'ধানমন্ডি, ঢাকা' },
     address: { en: 'Road 27, Dhanmondi', bn: 'রোড ২৭, ধানমন্ডি' },
+    lat: 23.7465,
+    lng: 90.376,
   },
   {
     id: 'city-care',
     name: { en: 'City Care Clinic, Mirpur', bn: 'সিটি কেয়ার ক্লিনিক, মিরপুর' },
     area: { en: 'Mirpur 10, Dhaka', bn: 'মিরপুর ১০, ঢাকা' },
     address: { en: 'Section 10, Mirpur', bn: 'সেকশন ১০, মিরপুর' },
+    lat: 23.8069,
+    lng: 90.3687,
   },
   {
     id: 'niramoy',
     name: { en: 'Niramoy Health Centre, Mohammadpur', bn: 'নিরাময় হেলথ সেন্টার, মোহাম্মদপুর' },
     area: { en: 'Mohammadpur, Dhaka', bn: 'মোহাম্মদপুর, ঢাকা' },
     address: { en: 'Town Hall Road, Mohammadpur', bn: 'টাউন হল রোড, মোহাম্মদপুর' },
+    lat: 23.764,
+    lng: 90.3586,
   },
 ];
 
@@ -121,7 +127,14 @@ export const DEPARTMENTS: Department[] = [
   { id: 'orthopaedics', name: { en: 'Orthopaedics', bn: 'অর্থোপেডিক্স' }, icon: 'body-outline' },
 ];
 
-export type Chamber = { hospitalId: string; chamberId: string; room: Localized; days: Localized };
+export type Chamber = {
+  hospitalId: string;
+  chamberId: string;
+  room: Localized;
+  days: Localized;
+  /** Days the chamber is open, as Date#getDay() numbers (0 = Sunday). */
+  weekdays: number[];
+};
 
 export type DemoDoctor = {
   id: string;
@@ -132,7 +145,6 @@ export type DemoDoctor = {
   degrees: Localized;
   rating: number;
   fee: number;
-  gender: 'female' | 'male';
   hospitalId: string;
   departmentId: string;
   chambers: Chamber[];
@@ -146,12 +158,14 @@ export type DemoDoctor = {
 const MORNING = ['10:00', '10:30', '11:00', '11:30', '12:00', '12:30'];
 const EVENING = ['17:00', '17:30', '18:00', '18:30', '19:00', '19:30'];
 
+const WEEKDAYS_SAT_THU = [6, 0, 1, 2, 3, 4];
+const WEEKDAYS_SUN_THU = [0, 1, 2, 3, 4];
 const DAYS_SAT_THU: Localized = { en: 'Sat – Thu', bn: 'শনি – বৃহ' };
 const DAYS_SUN_THU: Localized = { en: 'Sun – Thu', bn: 'রবি – বৃহ' };
 
 type DoctorSpec = {
   id: string; en: string; bn: string; init: [string, string]; dept: string; hospital: string;
-  degEn: string; degBn: string; rating: number; fee: number; gender: 'female' | 'male';
+  degEn: string; degBn: string; rating: number; fee: number;
   room: [string, string]; days: Localized; times: string[];
 };
 
@@ -183,54 +197,54 @@ export function timeLabel(time: string): Localized {
 
 const DOCTOR_SPECS: DoctorSpec[] = [
   { id: DEMO.doctorId, en: 'Dr. Farhana Ahmed', bn: 'ডা. ফারহানা আহমেদ', init: ['FA', 'ফা'], dept: 'medicine', hospital: 'dhaka-medicare',
-    degEn: 'MBBS, FCPS (Medicine)', degBn: 'এমবিবিএস, এফসিপিএস (মেডিসিন)', rating: 4.9, fee: DEMO.fee, gender: 'female',
+    degEn: 'MBBS, FCPS (Medicine)', degBn: 'এমবিবিএস, এফসিপিএস (মেডিসিন)', rating: 4.9, fee: DEMO.fee,
     room: ['Room 304', 'রুম ৩০৪'], days: DAYS_SAT_THU, times: ['10:30', '11:00', '11:30', '12:00'] },
   { id: 'doctor-imran', en: 'Dr. Imran Hossain', bn: 'ডা. ইমরান হোসেন', init: ['IH', 'ই'], dept: 'medicine', hospital: 'city-care',
-    degEn: 'MBBS, MD (Medicine)', degBn: 'এমবিবিএস, এমডি (মেডিসিন)', rating: 4.7, fee: 600, gender: 'male',
+    degEn: 'MBBS, MD (Medicine)', degBn: 'এমবিবিএস, এমডি (মেডিসিন)', rating: 4.7, fee: 600,
     room: ['Room 12', 'রুম ১২'], days: DAYS_SUN_THU, times: EVENING },
   { id: 'doctor-shirin', en: 'Dr. Shirin Sultana', bn: 'ডা. শিরিন সুলতানা', init: ['SS', 'শি'], dept: 'medicine', hospital: 'niramoy',
-    degEn: 'MBBS, BCS (Health)', degBn: 'এমবিবিএস, বিসিএস (স্বাস্থ্য)', rating: 4.6, fee: 500, gender: 'female',
+    degEn: 'MBBS, BCS (Health)', degBn: 'এমবিবিএস, বিসিএস (স্বাস্থ্য)', rating: 4.6, fee: 500,
     room: ['Room 5', 'রুম ৫'], days: DAYS_SAT_THU, times: MORNING },
 
   { id: 'doctor-tanvir', en: 'Dr. Tanvir Karim', bn: 'ডা. তানভীর করিম', init: ['TK', 'তা'], dept: 'cardiology', hospital: 'dhaka-medicare',
-    degEn: 'MBBS, MD (Cardiology)', degBn: 'এমবিবিএস, এমডি (কার্ডিওলজি)', rating: 4.8, fee: 1000, gender: 'male',
+    degEn: 'MBBS, MD (Cardiology)', degBn: 'এমবিবিএস, এমডি (কার্ডিওলজি)', rating: 4.8, fee: 1000,
     room: ['Room 410', 'রুম ৪১০'], days: DAYS_SAT_THU, times: ['12:00', '12:30', '13:00', '13:30'] },
   { id: 'doctor-aminul', en: 'Dr. Aminul Islam', bn: 'ডা. আমিনুল ইসলাম', init: ['AI', 'আ'], dept: 'cardiology', hospital: 'city-care',
-    degEn: 'MBBS, FCPS (Cardiology)', degBn: 'এমবিবিএস, এফসিপিএস (কার্ডিওলজি)', rating: 4.8, fee: 1200, gender: 'male',
+    degEn: 'MBBS, FCPS (Cardiology)', degBn: 'এমবিবিএস, এফসিপিএস (কার্ডিওলজি)', rating: 4.8, fee: 1200,
     room: ['Room 21', 'রুম ২১'], days: DAYS_SUN_THU, times: EVENING },
 
   { id: 'doctor-nusrat', en: 'Dr. Nusrat Jahan', bn: 'ডা. নুসরাত জাহান', init: ['NJ', 'নু'], dept: 'gynaecology', hospital: 'dhaka-medicare',
-    degEn: 'MBBS, FCPS (Gynaecology)', degBn: 'এমবিবিএস, এফসিপিএস (গাইনি)', rating: 4.9, fee: 900, gender: 'female',
+    degEn: 'MBBS, FCPS (Gynaecology)', degBn: 'এমবিবিএস, এফসিপিএস (গাইনি)', rating: 4.9, fee: 900,
     room: ['Room 215', 'রুম ২১৫'], days: DAYS_SAT_THU, times: MORNING },
   { id: 'doctor-rokeya', en: 'Dr. Rokeya Begum', bn: 'ডা. রোকেয়া বেগম', init: ['RB', 'রো'], dept: 'gynaecology', hospital: 'niramoy',
-    degEn: 'MBBS, DGO', degBn: 'এমবিবিএস, ডিজিও', rating: 4.7, fee: 700, gender: 'female',
+    degEn: 'MBBS, DGO', degBn: 'এমবিবিএস, ডিজিও', rating: 4.7, fee: 700,
     room: ['Room 8', 'রুম ৮'], days: DAYS_SAT_THU, times: EVENING },
 
   { id: 'doctor-mahbub', en: 'Dr. Mahbub Alam', bn: 'ডা. মাহবুব আলম', init: ['MA', 'মা'], dept: 'paediatrics', hospital: 'city-care',
-    degEn: 'MBBS, DCH', degBn: 'এমবিবিএস, ডিসিএইচ', rating: 4.8, fee: 700, gender: 'male',
+    degEn: 'MBBS, DCH', degBn: 'এমবিবিএস, ডিসিএইচ', rating: 4.8, fee: 700,
     room: ['Room 15', 'রুম ১৫'], days: DAYS_SAT_THU, times: MORNING },
   { id: 'doctor-tasnim', en: 'Dr. Tasnim Rahman', bn: 'ডা. তাসনিম রহমান', init: ['TR', 'তা'], dept: 'paediatrics', hospital: 'dhaka-medicare',
-    degEn: 'MBBS, FCPS (Paediatrics)', degBn: 'এমবিবিএস, এফসিপিএস (শিশু)', rating: 4.9, fee: 800, gender: 'female',
+    degEn: 'MBBS, FCPS (Paediatrics)', degBn: 'এমবিবিএস, এফসিপিএস (শিশু)', rating: 4.9, fee: 800,
     room: ['Room 118', 'রুম ১১৮'], days: DAYS_SUN_THU, times: EVENING },
   { id: 'doctor-sabbir', en: 'Dr. Sabbir Ahmed', bn: 'ডা. সাব্বির আহমেদ', init: ['SA', 'সা'], dept: 'paediatrics', hospital: 'niramoy',
-    degEn: 'MBBS, DCH', degBn: 'এমবিবিএস, ডিসিএইচ', rating: 4.5, fee: 500, gender: 'male',
+    degEn: 'MBBS, DCH', degBn: 'এমবিবিএস, ডিসিএইচ', rating: 4.5, fee: 500,
     room: ['Room 3', 'রুম ৩'], days: DAYS_SAT_THU, times: MORNING },
 
   { id: 'doctor-lamia', en: 'Dr. Lamia Haque', bn: 'ডা. লামিয়া হক', init: ['LH', 'লা'], dept: 'dermatology', hospital: 'city-care',
-    degEn: 'MBBS, MD (Dermatology)', degBn: 'এমবিবিএস, এমডি (চর্মরোগ)', rating: 4.8, fee: 800, gender: 'female',
+    degEn: 'MBBS, MD (Dermatology)', degBn: 'এমবিবিএস, এমডি (চর্মরোগ)', rating: 4.8, fee: 800,
     room: ['Room 30', 'রুম ৩০'], days: DAYS_SUN_THU, times: EVENING },
   { id: 'doctor-arif', en: 'Dr. Arif Chowdhury', bn: 'ডা. আরিফ চৌধুরী', init: ['AC', 'আ'], dept: 'dermatology', hospital: 'dhaka-medicare',
-    degEn: 'MBBS, DDV', degBn: 'এমবিবিএস, ডিডিভি', rating: 4.6, fee: 900, gender: 'male',
+    degEn: 'MBBS, DDV', degBn: 'এমবিবিএস, ডিডিভি', rating: 4.6, fee: 900,
     room: ['Room 207', 'রুম ২০৭'], days: DAYS_SAT_THU, times: MORNING },
 
   { id: 'doctor-kamrul', en: 'Dr. Kamrul Hasan', bn: 'ডা. কামরুল হাসান', init: ['KH', 'কা'], dept: 'orthopaedics', hospital: 'dhaka-medicare',
-    degEn: 'MBBS, MS (Orthopaedics)', degBn: 'এমবিবিএস, এমএস (অর্থোপেডিক্স)', rating: 4.8, fee: 1000, gender: 'male',
+    degEn: 'MBBS, MS (Orthopaedics)', degBn: 'এমবিবিএস, এমএস (অর্থোপেডিক্স)', rating: 4.8, fee: 1000,
     room: ['Room 502', 'রুম ৫০২'], days: DAYS_SAT_THU, times: EVENING },
   { id: 'doctor-delwar', en: 'Dr. Delwar Hossain', bn: 'ডা. দেলোয়ার হোসেন', init: ['DH', 'দে'], dept: 'orthopaedics', hospital: 'niramoy',
-    degEn: 'MBBS, D-Ortho', degBn: 'এমবিবিএস, ডি-অর্থো', rating: 4.5, fee: 600, gender: 'male',
+    degEn: 'MBBS, D-Ortho', degBn: 'এমবিবিএস, ডি-অর্থো', rating: 4.5, fee: 600,
     room: ['Room 9', 'রুম ৯'], days: DAYS_SAT_THU, times: MORNING },
   { id: 'doctor-mizanur', en: 'Dr. Mizanur Rahman', bn: 'ডা. মিজানুর রহমান', init: ['MR', 'মি'], dept: 'orthopaedics', hospital: 'city-care',
-    degEn: 'MBBS, FCPS (Orthopaedics)', degBn: 'এমবিবিএস, এফসিপিএস (অর্থোপেডিক্স)', rating: 4.7, fee: 900, gender: 'male',
+    degEn: 'MBBS, FCPS (Orthopaedics)', degBn: 'এমবিবিএস, এফসিপিএস (অর্থোপেডিক্স)', rating: 4.7, fee: 900,
     room: ['Room 40', 'রুম ৪০'], days: DAYS_SUN_THU, times: EVENING },
 ];
 
@@ -242,7 +256,6 @@ export const doctors: DemoDoctor[] = DOCTOR_SPECS.map((spec) => ({
   degrees: { en: spec.degEn, bn: spec.degBn },
   rating: spec.rating,
   fee: spec.fee,
-  gender: spec.gender,
   hospitalId: spec.hospital,
   departmentId: spec.dept,
   chambers: [{
@@ -251,6 +264,7 @@ export const doctors: DemoDoctor[] = DOCTOR_SPECS.map((spec) => ({
     chamberId: spec.id === DEMO.doctorId ? DEMO.chamberId : `${spec.hospital}-${spec.id}`,
     room: { en: spec.room[0], bn: spec.room[1] },
     days: spec.days,
+    weekdays: spec.days === DAYS_SAT_THU ? WEEKDAYS_SAT_THU : WEEKDAYS_SUN_THU,
   }],
   slotTimes: spec.times,
   nextSlot: timeLabel(spec.times[0]),
