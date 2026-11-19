@@ -38,7 +38,10 @@ export function useDoctors(): DemoDoctor[] {
       .then((result) => {
         if (!active) return;
         setOffline(false);
-        if (result.length > 0) setList(result as DemoDoctor[]);
+        if (result.length > 0) {
+          // Overlay what the server knows (fee, rating, ...) on the catalog; ignore doctors it has but the catalog lacks.
+          setList(demoDoctors.map((doctor) => ({ ...doctor, ...(result.find((r) => r.id === doctor.id) ?? {}) })));
+        }
       })
       .catch(() => setOffline(true));
     return () => {

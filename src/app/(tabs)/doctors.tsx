@@ -6,7 +6,7 @@ import { AppScreen, AppText, BiText, Card, DemoNotice, Field, ScreenHeader } fro
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
 import { useDoctors } from '../../hooks/usePolling';
-import { DEMO } from '../../services/mock';
+import { findHospital } from '../../services/mock';
 import { formatTaka } from '../../utils/format';
 
 export default function DoctorsScreen() {
@@ -15,7 +15,7 @@ export default function DoctorsScreen() {
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
   const visibleDoctors = doctors.filter((doctor) =>
-    [doctor.name, doctor.specialty, doctor.degrees, DEMO.hospital]
+    [doctor.name, doctor.specialty, doctor.degrees, findHospital(doctor.hospitalId).name]
       .flatMap((text) => [text.en, text.bn])
       .join(' ')
       .toLowerCase()
@@ -55,7 +55,7 @@ export default function DoctorsScreen() {
           <View style={styles.details}>
             <View style={styles.detailRow}>
               <Ionicons name="location-outline" size={15} color={colors.muted} />
-              <AppText style={styles.detailText}>{DEMO.hospital[language]}</AppText>
+              <AppText style={styles.detailText}>{findHospital(doctor.hospitalId).name[language]}</AppText>
             </View>
             <View style={styles.detailRow}>
               <Ionicons name="time-outline" size={15} color={colors.muted} />
