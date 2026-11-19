@@ -18,7 +18,8 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      ["expo-audio", {"microphonePermission": "ShuShastho uses the microphone so you can speak your symptoms. · উপসর্গ বলার জন্য সুস্বাস্থ্য মাইক্রোফোন ব্যবহার করে।"}]
     ]
   }
 }

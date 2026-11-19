@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import accounts, auth, clinic, emergency, triage
+from . import accounts, auth, clinic, emergency, transcribe, triage
 from .db import get_db
 from .seed import seed
 
@@ -40,6 +40,7 @@ app.include_router(accounts.users_router)
 app.include_router(clinic.router)
 app.include_router(emergency.router)
 app.include_router(triage.router)
+app.include_router(transcribe.router)
 
 
 @app.get("/health")

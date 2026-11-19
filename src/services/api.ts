@@ -153,6 +153,19 @@ export function sendSymptomMessage(input: {
   );
 }
 
+export function transcribeAudio(input: {
+  audioBase64: string;
+  mimeType: string;
+  language: Language;
+}): Promise<{ text: string }> {
+  return request(
+    '/v1/ai/transcribe',
+    { method: 'POST', body: JSON.stringify(input) },
+    (value): value is { text: string } => isRecord(value) && typeof value.text === 'string',
+    { auth: false },
+  );
+}
+
 export function createAppointment(input: CreateAppointmentInput): Promise<AppointmentConfirmation> {
   const { idempotencyKey, ...body } = input;
   return request(
