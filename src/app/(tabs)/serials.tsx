@@ -8,7 +8,7 @@ import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
-import { DEMO, findDoctor, type Localized } from '../../services/mock';
+import { DEMO, findDoctor, findHospital, type Localized } from '../../services/mock';
 
 type StepState = 'done' | 'current' | 'upcoming';
 
@@ -57,7 +57,7 @@ export default function SerialsScreen() {
               <AppText style={styles.liveLabel}>{t('queueLive')}</AppText>
             </View>
             <AppText style={styles.queueTitle}>{doctor.name[language]}</AppText>
-            <AppText style={styles.meta}>{DEMO.hospital[language]}</AppText>
+            <AppText style={styles.meta}>{findHospital(doctor.hospitalId).name[language]}</AppText>
           </View>
           <View style={styles.queueNumber}>
             <BiText text={L('yourSerial')} style={styles.queueSmall} subStyle={styles.centerSub} />

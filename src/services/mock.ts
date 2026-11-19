@@ -482,3 +482,18 @@ export const sosHospitals = [
   { id: 'medicare', nameKey: 'hospitalOne', metaKey: 'hospitalOneMeta' },
   { id: 'citycare', nameKey: 'hospitalTwo', metaKey: 'hospitalTwoMeta' },
 ] as const satisfies readonly { id: string; nameKey: TranslationKey; metaKey: TranslationKey }[];
+
+/** Maps an AI "suggested specialty" (any language) to a department id; undefined when unknown. */
+export function matchDepartment(text?: string | null): string | undefined {
+  if (!text) return undefined;
+  const lower = text.toLowerCase();
+  const rules: [string, string[]][] = [
+    ['cardiology', ['cardio', 'heart', 'হৃদ']],
+    ['gynaecology', ['gyn', 'obstet', 'গাইনি', 'প্রসূতি']],
+    ['paediatrics', ['paed', 'pediat', 'child', 'শিশু']],
+    ['dermatology', ['derm', 'skin', 'চর্ম', 'ত্বক']],
+    ['orthopaedics', ['ortho', 'bone', 'অর্থো', 'হাড়']],
+    ['medicine', ['medicine', 'physician', 'general', 'মেডিসিন']],
+  ];
+  return rules.find(([, words]) => words.some((word) => lower.includes(word)))?.[0];
+}

@@ -6,7 +6,7 @@ import { AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader,
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
-import { DEMO, findDoctor, type Localized } from '../../services/mock';
+import { DEMO, findDoctor, findHospital, type Localized } from '../../services/mock';
 import { WEEKDAYS } from '../../utils/format';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -52,7 +52,7 @@ export default function HomeScreen() {
           <View style={styles.appointmentTop}>
             <View style={styles.flex}>
               <AppText style={styles.doctorName}>{doctor.name[language]}</AppText>
-              <AppText style={styles.meta}>{DEMO.hospital[language]}</AppText>
+              <AppText style={styles.meta}>{findHospital(doctor.hospitalId).name[language]}</AppText>
               <AppText style={styles.meta}>{DEMO.visitTime[language]}</AppText>
             </View>
             <View style={styles.serialBadge}>
