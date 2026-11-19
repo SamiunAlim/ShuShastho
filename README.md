@@ -185,13 +185,7 @@ npx expo start -c
 - **ফোনে:** Expo Go দিয়ে QR কোড স্ক্যান করুন (ফোন ও কম্পিউটার একই Wi-Fi-তে)
 - **ব্রাউজারে:** টার্মিনালে **w** চাপুন
 
-### ৪. ব্যাকএন্ড চালানো (আসল ডাটাবেস ও এআই)
 
-**ক) `backend/.env` ফাইল তৈরি করুন** (⚠️ কখনো GitHub-এ দেবেন না):
-```env
-MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/shushastho?retryWrites=true&w=majority
-GEMINI_API_KEY=<aistudio.google.com থেকে নেওয়া key>
-```
 > 🔐 আসল মান টিম লিডারের কাছ থেকে **ব্যক্তিগতভাবে** নিন, পাবলিক চ্যাটে দেবেন না। Gemini key না থাকলে এআই নিরাপদ স্ক্রিপ্টেড উত্তর দেয়।
 
 **খ) Windows (Command Prompt):**
@@ -211,6 +205,10 @@ source .venv/bin/activate
 pip install --no-cache-dir -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+4.Frontend Command:
+cd /d D:\ShuShastho
+npx expo start -c
+---
 
 **গ) যাচাই:**
 - `http://localhost:8000/health` → `{"status":"ok","mongo":"ok"}` ✅
@@ -241,7 +239,6 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 **নতুন অ্যাকাউন্টের OTP:** `123456` (ডেমো)
 
----
 
 ## 🎬 ৫ মিনিটের ডেমো
 
