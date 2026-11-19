@@ -153,6 +153,10 @@ export const DEMO_ACCOUNTS: { name: Localized; profile: Profile }[] = [
     ...EMPTY_PROFILE, role: 'hospitalAdmin', name: DEMO_STAFF.hospitalAdmin.en, phone: '01711000005',
     age: '45', gender: 'male', district: 'Dhaka', area: 'Dhanmondi',
     organization: DEMO.hospital.en, designation: 'Hospital Manager' } },
+  { name: DEMO_STAFF.superAdmin, profile: {
+    ...EMPTY_PROFILE, role: 'superAdmin', name: DEMO_STAFF.superAdmin.en, phone: '01711000006', email: 'sabrina@example.com',
+    age: '39', gender: 'female', district: 'Dhaka', area: 'Gulshan',
+    organization: 'ShuShastho Platform', designation: 'Platform Administrator' } },
 ];
 
 /** Demo only: a real backend hashes passwords on the server (see backend/app/auth.py). */

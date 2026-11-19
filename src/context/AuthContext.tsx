@@ -39,6 +39,8 @@ export const VISIBLE_ROLES: readonly Role[] = ROLES.filter((role) => Platform.OS
 export type { Profile };
 export { EMPTY_PROFILE } from '../services/data';
 
+export type LoginResult = { ok: true } | { ok: false; reason: 'invalid' } | { ok: false; reason: 'role'; actual: Role };
+
 export type Session = {
   role: Role;
   phone: string;
@@ -54,8 +56,8 @@ type AuthContextValue = {
   session: Session | null;
   /** Profile of the signed-in user (null for the demo super-admin, who has no account). */
   profile: Profile | null;
-  /** Phone/email + password. Resolves to false when the details are wrong. */
-  login: (identifier: string, password: string) => Promise<boolean>;
+  /** Phone/email + password for the chosen role. Fails when the details are wrong or the account has another role. */
+  login: (identifier: string, password: string, role: Role) => Promise<LoginResult>;
   /** Create the account and sign in. Resolves to an error code when the phone/email is already used. */
   signUp: (profile: Profile, password: string) => Promise<AuthErrorCode | null>;
   updateProfile: (patch: Partial<Profile>) => Promise<void>;
@@ -123,11 +125,15 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
   }, []);
 
   const login = useCallback(
-    async (identifier: string, password: string) => {
+    async (identifier: string, password: string, role: Role): Promise<LoginResult> => {
       const me = await serviceLogin(identifier, password);
-      if (!me) return false;
+      if (!me) return { ok: false, reason: 'invalid' };
+      if (me.role !== role) {
+        clearAuthToken(); // right password, wrong role: do not stay signed in
+        return { ok: false, reason: 'role', actual: me.role };
+      }
       start(me, sessionFor(me));
-      return true;
+      return { ok: true };
     },
     [start],
   );

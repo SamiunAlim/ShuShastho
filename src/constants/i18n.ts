@@ -469,8 +469,6 @@ export const messages = {
     orDivider: 'or',
     loginInvalid: 'Wrong phone number, email or password. Please check and try again.',
     loginRequired: 'Enter your phone number or email and your password',
-    demoAccounts: 'Demo accounts',
-    demoAccountsHint: 'Tap one to fill it in · password for all: demo123',
     passwordResetDone: 'Password changed. Please log in with your new password.',
     suTitle: 'Create account',
     suStepRole: 'Role',
@@ -533,6 +531,12 @@ export const messages = {
     cpDone: 'Your password has been changed',
     cpSave: 'Save password',
     profileSaved: 'Profile updated',
+    // --- Log in: choose role first ---
+    loginAsTitle: 'Log in as',
+    loginChange: 'Change',
+    loginRoleMismatch: 'This account is registered as {role}. Please log in as {role}.',
+    useDemoAccount: 'Use demo account',
+    demoLoginFor: 'Demo login: {phone} / demo123',
   },
   bn: {
     home: 'হোম',
@@ -996,8 +1000,6 @@ export const messages = {
     orDivider: 'অথবা',
     loginInvalid: 'ফোন নম্বর, ইমেইল বা পাসওয়ার্ড ভুল। আবার দেখে চেষ্টা করুন।',
     loginRequired: 'ফোন নম্বর বা ইমেইল এবং পাসওয়ার্ড দিন',
-    demoAccounts: 'ডেমো অ্যাকাউন্ট',
-    demoAccountsHint: 'ট্যাপ করলে বসে যাবে · সবার পাসওয়ার্ড: demo123',
     passwordResetDone: 'পাসওয়ার্ড বদলানো হয়েছে। নতুন পাসওয়ার্ড দিয়ে লগ ইন করুন।',
     suTitle: 'অ্যাকাউন্ট খুলুন',
     suStepRole: 'ভূমিকা',
@@ -1060,6 +1062,12 @@ export const messages = {
     cpDone: 'আপনার পাসওয়ার্ড বদলানো হয়েছে',
     cpSave: 'পাসওয়ার্ড সংরক্ষণ করুন',
     profileSaved: 'প্রোফাইল হালনাগাদ হয়েছে',
+    // --- Log in: choose role first ---
+    loginAsTitle: 'লগইন করুন যে হিসেবে',
+    loginChange: 'বদলান',
+    loginRoleMismatch: 'এই অ্যাকাউন্টটি {role} হিসেবে নিবন্ধিত। অনুগ্রহ করে {role} হিসেবে লগইন করুন।',
+    useDemoAccount: 'ডেমো অ্যাকাউন্ট ব্যবহার করুন',
+    demoLoginFor: 'ডেমো লগইন: {phone} / demo123',
   },
 } as const;
 

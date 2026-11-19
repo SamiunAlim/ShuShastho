@@ -95,7 +95,7 @@ Errors use `{ "error": { "message", "code" } }`. OTP is mocked: the code is alwa
 `reset-password`; a real deployment would send an SMS). Passwords need at least 6 characters.
 
 **Demo accounts** (seeded on server start if missing, password `demo123`): patient `01711000001`, doctor `01711000002`,
-receptionist `01711000003`, pharmacist `01711000004`, hospital admin `01711000005`.
+receptionist `01711000003`, pharmacist `01711000004`, hospital admin `01711000005`, super admin `01711000006`.
 
 **Frontend:** `src/services/data.ts` calls these endpoints first when `EXPO_PUBLIC_API_URL` is set. A definite answer
 (wrong password, phone already used) is final; if the server cannot be reached the same call falls back to the accounts

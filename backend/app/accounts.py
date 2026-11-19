@@ -296,6 +296,7 @@ _BASE = {
 }
 HOSPITAL = "Dhaka Medicare Hospital, Dhanmondi"
 
+# (superAdmin is seeded only: it cannot be created through /register.)
 # Same phone numbers / names as DEMO_ACCOUNTS in src/services/data.ts (password demo123).
 DEMO_USERS = [
     {**_BASE, "role": "patient", "name": "Rahim Uddin", "phone": "01711000001", "email": "rahim@example.com",
@@ -309,6 +310,9 @@ DEMO_USERS = [
      "organization": "Rahman Pharmacy, Dhanmondi", "staffId": "RP-007"},
     {**_BASE, "role": "hospitalAdmin", "name": "Tanvir Rahman", "phone": "01711000005", "age": "45", "gender": "male",
      "organization": HOSPITAL, "designation": "Hospital Manager"},
+    {**_BASE, "role": "superAdmin", "name": "Sabrina Chowdhury", "phone": "01711000006", "email": "sabrina@example.com",
+     "age": "39", "gender": "female", "area": "Gulshan", "organization": "ShuShastho Platform",
+     "designation": "Platform Administrator"},
 ]
 
 
