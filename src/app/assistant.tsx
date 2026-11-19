@@ -14,6 +14,7 @@ import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, Field, Scre
 import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import { ApiError, isBackendConfigured, RiskLevel, sendSymptomMessage } from '../services/api';
+import { setOffline, useOffline } from '../services/connection';
 import { delay, mockAssistantReply } from '../services/mock';
 import { TranslationKey } from '../constants/i18n';
 import { call999 } from '../utils/emergency';
@@ -50,7 +51,8 @@ export default function AssistantScreen() {
   const [error, setError] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
-  const connected = isBackendConfigured();
+  const offline = useOffline();
+  const connected = isBackendConfigured() && !offline;
   // In demo mode nothing leaves the device, so consent is only needed with a real backend.
   const consentOk = !connected || consentGiven;
 
@@ -68,7 +70,17 @@ export default function AssistantScreen() {
     setSending(true);
 
     try {
-      if (!connected) {
+      let live: Awaited<ReturnType<typeof sendSymptomMessage>> | null = null;
+      if (connected) {
+        try {
+          live = await sendSymptomMessage({ conversationId, message, language });
+          setOffline(false);
+        } catch {
+          // Backend failed: fall back to the scripted demo reply.
+          setOffline(true);
+        }
+      }
+      if (!live) {
         await delay(900);
         const reply = mockAssistantReply(message, userMessageCount);
         setMessages((current) => [
@@ -86,7 +98,7 @@ export default function AssistantScreen() {
         return;
       }
 
-      const reply = await sendSymptomMessage({ conversationId, message, language });
+      const reply = live;
       setConversationId(reply.conversationId);
       setMessages((current) => [
         ...current,

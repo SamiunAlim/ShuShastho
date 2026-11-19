@@ -9,6 +9,8 @@ import colors from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useDesk } from '../../context/DeskContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { EmergencyAlerts } from '../../components/EmergencyAlerts';
+import { useQueuePoll } from '../../hooks/usePolling';
 import { DEMO } from '../../services/mock';
 
 /** Doctor's "today" screen: who is with the doctor, who is next (with AI pre-visit summary), Call next. */
@@ -16,6 +18,7 @@ export default function DoctorQueueScreen() {
   const { t, tf, L, nf, language } = useLanguage();
   const { session } = useAuth();
   const desk = useDesk();
+  useQueuePoll();
 
   const waiting = desk.patients.filter((p) => p.status === 'waiting');
   const seen = desk.patients.filter((p) => p.status === 'done').length;
@@ -33,6 +36,8 @@ export default function DoctorQueueScreen() {
       contentStyle={styles.content}
       footer={<StaffFooter />}
     >
+      <EmergencyAlerts />
+
       <View style={styles.stats}>
         <Stat label={t('areaWaiting')} value={nf(waiting.length)} />
         <Stat label={t('areaSeen')} value={nf(seen)} />

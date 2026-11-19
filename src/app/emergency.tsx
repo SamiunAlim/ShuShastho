@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen, AppText, BiText, Card, ScreenHeader } from '../components/ui';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import { sosHospitals } from '../services/mock';
@@ -12,6 +13,7 @@ const SOS_BACKGROUND = '#FFF6F7';
 
 export default function EmergencyScreen() {
   const { language, t, L, nf } = useLanguage();
+  const { session } = useAuth();
   const [error, setError] = useState('');
   const [demoNote, setDemoNote] = useState(false);
 
@@ -26,7 +28,7 @@ export default function EmergencyScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('call999')}
-          onPress={() => call999(() => setError(t('callUnavailable')))}
+          onPress={() => call999(() => setError(t('callUnavailable')), { patientName: session?.name.en, phone: session?.phone, source: 'sos' })}
           style={({ pressed }) => [styles.bigButton, pressed && { opacity: 0.88 }]}
         >
           <Ionicons name="call-outline" size={34} color={colors.surface} />

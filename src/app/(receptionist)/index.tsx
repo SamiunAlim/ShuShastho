@@ -9,6 +9,7 @@ import type { TranslationKey } from '../../constants/i18n';
 import { useAuth } from '../../context/AuthContext';
 import { DeskPatient, useDesk, VisitStatus } from '../../context/DeskContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useQueuePoll } from '../../hooks/usePolling';
 import { DEMO } from '../../services/mock';
 
 const SCAN_MS = 1200;
@@ -28,6 +29,7 @@ export default function FrontDeskScreen() {
   const { t, tf, L, nf, language } = useLanguage();
   const { session } = useAuth();
   const desk = useDesk();
+  useQueuePoll();
   const [scan, setScan] = useState<ScanState>({ phase: 'idle' });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 

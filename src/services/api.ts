@@ -1,6 +1,7 @@
 import { Language } from '../constants/i18n';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
+const REQUEST_TIMEOUT_MS = 4000;
 let accessTokenProvider: (() => Promise<string | null>) | undefined;
 
 export function setAccessTokenProvider(provider: () => Promise<string | null>) {
@@ -69,9 +70,12 @@ async function request<T>(
   }
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      signal: controller.signal,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -81,6 +85,8 @@ async function request<T>(
     });
   } catch {
     throw new ApiError('Could not reach the health service.');
+  } finally {
+    clearTimeout(timeout);
   }
 
   const body: unknown = await response.json().catch(() => null);
@@ -150,4 +156,144 @@ export function createAppointment(input: CreateAppointmentInput): Promise<Appoin
     },
     isAppointmentConfirmation,
   );
+}
+
+/* ------------------------- Demo auth (backend demo-login) ------------------------ */
+
+type BackendRole = 'patient' | 'receptionist' | 'doctor';
+let backendRole: BackendRole = 'patient';
+let cachedToken: { role: BackendRole; token: string } | null = null;
+
+/** The backend only knows three demo roles; the other staff roles use the receptionist token. */
+export function setBackendRole(role: string | null | undefined) {
+  const next: BackendRole = role === 'doctor' ? 'doctor' : role === 'patient' || !role ? 'patient' : 'receptionist';
+  if (next !== backendRole) cachedToken = null;
+  backendRole = next;
+}
+
+async function getDemoToken(): Promise<string | null> {
+  if (!API_BASE_URL) return null;
+  if (cachedToken?.role === backendRole) return cachedToken.token;
+  const role = backendRole;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE_URL}/v1/auth/demo-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ role }),
+      signal: controller.signal,
+    });
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok || !isRecord(body) || typeof body.token !== 'string') return null;
+    cachedToken = { role, token: body.token };
+    return body.token;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Registers the demo-login token as the access token for every API request. */
+export function initDemoAuth() {
+  setAccessTokenProvider(getDemoToken);
+}
+
+/* ---------------------------------- Doctors ---------------------------------- */
+
+type Localized = { en: string; bn: string };
+
+export type ApiDoctor = {
+  id: string;
+  name: Localized;
+  initials: Localized;
+  specialty: Localized;
+  degrees: Localized;
+  rating: number;
+  fee: number;
+  nextSlot: Localized;
+  slots: number;
+};
+
+export function fetchDoctors(): Promise<ApiDoctor[]> {
+  return request('/v1/doctors', { method: 'GET' }, (value): value is ApiDoctor[] => Array.isArray(value));
+}
+
+/* ----------------------------------- Queue ----------------------------------- */
+
+export type QueueItem = {
+  appointmentId: string;
+  serialNumber: number;
+  patientName: Localized;
+  phone: string;
+  age: number;
+  summary: Localized;
+  checkedIn: boolean;
+  noShow: boolean;
+  status: 'done' | 'serving' | 'waiting' | 'no_show';
+};
+
+export type QueueResponse = { doctorId: string; nowServing: number; items: QueueItem[] };
+
+function isQueueResponse(value: unknown): value is QueueResponse {
+  return isRecord(value) && typeof value.doctorId === 'string' && typeof value.nowServing === 'number'
+    && Array.isArray(value.items);
+}
+
+const enc = encodeURIComponent;
+
+export function fetchQueue(doctorId: string): Promise<QueueResponse> {
+  return request(`/v1/queue/${enc(doctorId)}`, { method: 'GET' }, isQueueResponse);
+}
+
+export function checkInAppointment(appointmentId: string): Promise<QueueResponse> {
+  return request(`/v1/queue/${enc(appointmentId)}/check-in`, { method: 'POST' }, isQueueResponse);
+}
+
+export function markNoShow(appointmentId: string): Promise<QueueResponse> {
+  return request(`/v1/queue/${enc(appointmentId)}/no-show`, { method: 'POST' }, isQueueResponse);
+}
+
+export function restoreAppointment(appointmentId: string): Promise<QueueResponse> {
+  return request(`/v1/queue/${enc(appointmentId)}/restore`, { method: 'POST' }, isQueueResponse);
+}
+
+export function callNextPatient(doctorId: string): Promise<QueueResponse> {
+  return request(`/v1/queue/${enc(doctorId)}/call-next`, { method: 'POST' }, isQueueResponse);
+}
+
+/* ------------------------------- Emergency alerts ------------------------------ */
+
+export type EmergencyAlert = {
+  id: string;
+  patientName: string;
+  phone: string | null;
+  message: string;
+  location: string | null;
+  source: 'sos' | 'ai-triage' | 'checkin';
+  status: 'open' | 'acknowledged' | 'resolved';
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+function isAlert(value: unknown): value is EmergencyAlert {
+  return isRecord(value) && typeof value.id === 'string';
+}
+
+export function postEmergencyAlert(input: {
+  patientName?: string;
+  phone?: string;
+  message?: string;
+  source?: EmergencyAlert['source'];
+}): Promise<EmergencyAlert> {
+  return request('/v1/emergency/alerts', { method: 'POST', body: JSON.stringify(input) }, isAlert);
+}
+
+export function fetchEmergencyAlerts(): Promise<EmergencyAlert[]> {
+  return request('/v1/emergency/alerts', { method: 'GET' }, (value): value is EmergencyAlert[] => Array.isArray(value));
+}
+
+export function updateEmergencyAlert(id: string, status: 'acknowledged' | 'resolved'): Promise<EmergencyAlert> {
+  return request(`/v1/emergency/alerts/${enc(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) }, isAlert);
 }

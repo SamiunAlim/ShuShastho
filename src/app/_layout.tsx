@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { OfflineBadge } from '../components/OfflineBadge';
 import { RoleSwitcher } from '../components/RoleSwitcher';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { DeskProvider } from '../context/DeskContext';
@@ -9,6 +10,10 @@ import { LanguageProvider, useLanguage } from '../context/LanguageContext';
 import { JourneyProvider } from '../context/JourneyContext';
 import { QueueProvider } from '../context/QueueContext';
 import colors from '../constants/colors';
+import { initDemoAuth } from '../services/api';
+
+// Use the backend's demo-login token for every API request.
+initDemoAuth();
 
 function AppStack() {
   const { ready } = useLanguage();
@@ -59,6 +64,7 @@ function AppStack() {
         </Stack.Protected>
       </Stack>
       <RoleSwitcher />
+      <OfflineBadge />
     </>
   );
 }

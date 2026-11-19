@@ -42,3 +42,6 @@ yarn-error.*
 backend/.env
 backend/.venv
 __pycache__/
+
+# local backend address (machine specific)
+.env

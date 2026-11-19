@@ -6,7 +6,9 @@ import colors from '../../constants/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useDesk } from '../../context/DeskContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { DEMO, doctors } from '../../services/mock';
+import { EmergencyAlerts } from '../../components/EmergencyAlerts';
+import { useDoctors, useQueuePoll } from '../../hooks/usePolling';
+import { DEMO } from '../../services/mock';
 import { formatTaka } from '../../utils/format';
 
 /** Hospital admin dashboard (web). Queue numbers are live from the front-desk / doctor state. */
@@ -14,6 +16,8 @@ export default function HospitalAdminScreen() {
   const { t, L, nf, language } = useLanguage();
   const { session } = useAuth();
   const desk = useDesk();
+  const doctors = useDoctors();
+  useQueuePoll();
 
   const seen = desk.patients.filter((p) => p.status === 'done').length;
   const walkIns = desk.patients.filter((p) => p.walkIn).length;
@@ -24,6 +28,8 @@ export default function HospitalAdminScreen() {
       contentStyle={styles.content}
       footer={<StaffFooter />}
     >
+      <EmergencyAlerts />
+
       <View style={styles.grid}>
         <Kpi label={t('haPatientsToday')} value={nf(desk.patients.length)} bg={colors.mint2} fg={colors.brand} />
         <Kpi label={t('areaWaiting')} value={nf(desk.counts.waiting)} bg={colors.blue} fg={colors.blueText} />

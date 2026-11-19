@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader } from '../../components/ui';
+import { useQueuePoll } from '../../hooks/usePolling';
 import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
@@ -14,6 +15,7 @@ type StepState = 'done' | 'current' | 'upcoming';
 export default function SerialsScreen() {
   const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
+  useQueuePoll();
   const doctor = findDoctor(queue.doctorId);
   const journey = useJourney();
   const [consulting, setConsulting] = useState(false);

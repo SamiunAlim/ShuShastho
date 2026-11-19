@@ -143,7 +143,7 @@ export default function CheckInScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('call999')}
-              onPress={() => call999(() => setCallError(true))}
+              onPress={() => call999(() => setCallError(true), { message: 'Recovery check-in: red-flag symptoms', source: 'checkin' })}
               style={styles.sosButton}
             >
               <Ionicons name="call" size={18} color={colors.surface} />

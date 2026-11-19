@@ -5,11 +5,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen, AppText, BiText, Card, DemoNotice, Field, ScreenHeader } from '../../components/ui';
 import { useLanguage } from '../../context/LanguageContext';
 import colors from '../../constants/colors';
-import { DEMO, doctors } from '../../services/mock';
+import { useDoctors } from '../../hooks/usePolling';
+import { DEMO } from '../../services/mock';
 import { formatTaka } from '../../utils/format';
 
 export default function DoctorsScreen() {
   const { language, t, tf, nf, L } = useLanguage();
+  const doctors = useDoctors();
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
   const visibleDoctors = doctors.filter((doctor) =>

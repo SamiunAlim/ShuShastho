@@ -124,10 +124,11 @@ def call_next(doctor_id: str):
     if state is None:
         raise _err(404, "Doctor not found")
     nxt = db.queue.find_one(
-        {"doctorId": doctor_id, "serialNumber": {"$gt": state["nowServing"]}, "noShow": {"$ne": True}},
+        {"doctorId": doctor_id, "serialNumber": {"$gt": state["nowServing"]}, "noShow": {"$ne": True},
+         "checkedIn": True},
         sort=[("serialNumber", 1)],
     )
     if nxt is None:
-        raise _err(409, "No more patients waiting")
+        raise _err(409, "No checked-in patients waiting")
     db.queue_state.update_one({"_id": doctor_id}, {"$set": {"nowServing": nxt["serialNumber"]}})
     return _queue(doctor_id)

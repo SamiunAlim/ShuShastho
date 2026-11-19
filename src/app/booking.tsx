@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useQueue } from '../context/QueueContext';
 import colors from '../constants/colors';
 import { createAppointment, isBackendConfigured } from '../services/api';
+import { setOffline } from '../services/connection';
 import { DEMO, findDoctor, mockCreateAppointment } from '../services/mock';
 import { addDays, formatTaka, MONTHS_SHORT, toIsoDate, WEEKDAYS } from '../utils/format';
 import { goBack } from '../utils/navigation';
@@ -50,8 +51,19 @@ export default function BookingScreen() {
         paymentMethod: 'cash_at_chamber' as const,
         idempotencyKey: newIdempotencyKey(),
       };
-      // Demo mode (no EXPO_PUBLIC_API_URL) uses the mock; otherwise the real API.
-      const result = isBackendConfigured() ? await createAppointment(input) : await mockCreateAppointment(input);
+      // POST /v1/appointments; if the backend is not configured or fails, fall back to the demo booking.
+      let result;
+      if (isBackendConfigured()) {
+        try {
+          result = await createAppointment(input);
+          setOffline(false);
+        } catch {
+          setOffline(true);
+          result = await mockCreateAppointment(input);
+        }
+      } else {
+        result = await mockCreateAppointment(input);
+      }
       const serial = Number.parseInt(result.serialNumber, 10);
       queue.bookSerial({ doctorId: doctor.id, serial: Number.isFinite(serial) ? serial : DEMO.serial });
       router.replace('/(tabs)/serials');

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { setBackendRole } from '../services/api';
 import { DEMO, DEMO_STAFF, Localized } from '../services/mock';
 
 /**
@@ -81,6 +82,8 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ready, setReady] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  // Keep the API's demo-login role in step with the session (set during render so child effects see it).
+  setBackendRole(session?.role);
 
   useEffect(() => {
     let active = true;
