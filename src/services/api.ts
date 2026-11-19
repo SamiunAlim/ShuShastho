@@ -19,11 +19,27 @@ export type SymptomAgentReply = {
   sources: { title: string; url?: string }[];
 };
 
+export type PaymentMethod = 'cash_at_chamber' | 'bkash' | 'nagad' | 'card';
+export type PaymentStatus = 'paid' | 'pay_at_chamber';
+
+/** Demo payment record. No PIN, OTP, CVV or card number is ever kept. */
+export type PaymentInfo = {
+  method: PaymentMethod;
+  status: PaymentStatus;
+  transactionId?: string;
+  amount: number;
+  /** ISO time the demo payment succeeded. */
+  paidAt?: string;
+};
+
 export type CreateAppointmentInput = {
   doctorId: string;
   chamberId: string;
   date: string;
-  paymentMethod: 'cash_at_chamber';
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  transactionId?: string;
+  amount?: number;
   idempotencyKey: string;
 };
 
@@ -265,6 +281,10 @@ export type QueueItem = {
   checkedIn: boolean;
   noShow: boolean;
   status: 'done' | 'serving' | 'waiting' | 'no_show';
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: PaymentStatus;
+  transactionId?: string | null;
+  amount?: number;
 };
 
 export type QueueResponse = { doctorId: string; nowServing: number; items: QueueItem[] };

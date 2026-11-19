@@ -8,6 +8,7 @@ import {
   apiResetPassword,
   apiUpdateMe,
   createAppointment as apiCreateAppointment,
+  type PaymentInfo,
   hasAuthToken,
   isBackendConfigured,
   setAuthToken,
@@ -405,6 +406,8 @@ export type PatientInfo = {
   phone: string;
 };
 
+export type { PaymentInfo, PaymentMethod, PaymentStatus } from './api';
+
 export type Appointment = {
   id: string;
   doctorId: string;
@@ -419,6 +422,8 @@ export type Appointment = {
   fee: number;
   patient: PatientInfo;
   reason: string;
+  /** Missing on appointments saved before payments existed (treated as pay at chamber). */
+  payment?: PaymentInfo;
   status: 'upcoming' | 'cancelled';
   createdAt: string;
 };
@@ -429,8 +434,17 @@ export type CreateAppointmentInput = {
   time: string;
   patient: PatientInfo;
   reason: string;
+  payment: PaymentInfo;
   idempotencyKey: string;
 };
+
+const appointmentListeners = new Set<() => void>();
+
+/** Lets the front desk / admin screens (demo mode) notice a new booking and its payment. */
+export function subscribeAppointments(listener: () => void) {
+  appointmentListeners.add(listener);
+  return () => { appointmentListeners.delete(listener); };
+}
 
 async function readAppointments(): Promise<Appointment[]> {
   try {
@@ -453,7 +467,10 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
         doctorId: doctor.id,
         chamberId: chamber.chamberId,
         date: input.date,
-        paymentMethod: 'cash_at_chamber',
+        paymentMethod: input.payment.method,
+        paymentStatus: input.payment.status,
+        transactionId: input.payment.transactionId,
+        amount: input.payment.amount,
         idempotencyKey: input.idempotencyKey,
       });
       setOffline(false);
@@ -484,10 +501,12 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
     fee: doctor.fee,
     patient: input.patient,
     reason: input.reason,
+    payment: input.payment,
     status: 'upcoming',
     createdAt: new Date().toISOString(),
   };
   await AsyncStorage.setItem(APPOINTMENTS_KEY, JSON.stringify([appointment, ...existing]));
+  appointmentListeners.forEach((listener) => listener());
   return appointment;
 }
 

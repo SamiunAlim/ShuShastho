@@ -104,8 +104,20 @@ function PatientRow({ patient, first }: { patient: DeskPatient; first: boolean }
             {patient.walkIn ? `${t('fdWalkInTag')} · ` : ''}{patient.summary[language]}
           </AppText>
         </View>
-        <View style={[styles.chip, { backgroundColor: style.bg }]}>
-          <AppText style={[styles.chipText, { color: style.fg }]}>{t(style.label)}</AppText>
+        <View style={styles.chips}>
+          <View style={[styles.chip, { backgroundColor: style.bg }]}>
+            <AppText style={[styles.chipText, { color: style.fg }]}>{t(style.label)}</AppText>
+          </View>
+          {patient.payment.status === 'paid' ? (
+            <View style={[styles.chip, styles.paidChip]}>
+              <Ionicons name="checkmark-circle" size={12} color={colors.brand} />
+              <AppText style={[styles.chipText, { color: colors.brand }]}>{t('payChipPaid')}</AppText>
+            </View>
+          ) : patient.status === 'waiting' || patient.status === 'notArrived' ? (
+            <View style={[styles.chip, { backgroundColor: colors.yellow }]}>
+              <AppText style={[styles.chipText, { color: colors.yellowText }]}>{t('payCashDue')}</AppText>
+            </View>
+          ) : null}
         </View>
       </View>
       {patient.status === 'notArrived' || patient.status === 'waiting' || patient.status === 'noShow' ? (
@@ -163,6 +175,8 @@ const styles = StyleSheet.create({
   serialText: { color: colors.brand, fontSize: 13, fontWeight: '700' },
   name: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '600' },
   meta: { color: colors.muted, fontSize: 11, lineHeight: 16 },
+  chips: { alignItems: 'flex-end', gap: 4 },
+  paidChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.mint3 },
   chip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   chipText: { fontSize: 11, fontWeight: '600' },
   rowActions: { flexDirection: 'row', gap: 8, paddingLeft: 56 },

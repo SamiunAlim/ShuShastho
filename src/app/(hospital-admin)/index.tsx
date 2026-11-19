@@ -21,6 +21,10 @@ export default function HospitalAdminScreen() {
 
   const seen = desk.patients.filter((p) => p.status === 'done').length;
   const walkIns = desk.patients.filter((p) => p.walkIn).length;
+  // Revenue: money already received online (demo) vs. cash still to collect at the desk.
+  const active = desk.patients.filter((p) => p.status !== 'noShow');
+  const onlinePaid = active.filter((p) => p.payment.status === 'paid').reduce((sum, p) => sum + p.payment.amount, 0);
+  const cashDue = active.filter((p) => p.payment.status !== 'paid' && p.status !== 'done').reduce((sum, p) => sum + p.payment.amount, 0);
 
   return (
     <AppScreen
@@ -38,6 +42,8 @@ export default function HospitalAdminScreen() {
         <Kpi label={t('fdWalkInTag')} value={nf(walkIns)} bg={colors.pink} fg={colors.pinkText} />
         <Kpi label={t('haWaitMinutes')} value={nf(desk.counts.waiting * DEMO.minutesPerPatient)} bg={colors.yellow} fg={colors.yellowText} />
         <Kpi label={t('haFees')} value={nf(formatTaka(seen * DEMO.fee))} bg={colors.mint2} fg={colors.brand} />
+        <Kpi label={t('haOnlinePaid')} value={nf(formatTaka(onlinePaid))} bg={colors.mint3} fg={colors.brand} />
+        <Kpi label={t('haCashDue')} value={nf(formatTaka(cashDue))} bg={colors.yellow} fg={colors.yellowText} />
       </View>
       <AppText style={styles.note}>{t('haLiveNote')}</AppText>
 

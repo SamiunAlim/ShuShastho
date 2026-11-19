@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { PaymentSheet } from '../components/PaymentSheet';
 import { StepIndicator } from '../components/StepIndicator';
 import { ActionButton, AppScreen, AppText, BiText, Card, FONT_FAMILIES, ScreenHeader } from '../components/ui';
 import colors from '../constants/colors';
@@ -17,13 +18,16 @@ import {
   getSlots,
   type DepartmentWithCount,
   type PatientInfo,
+  type PaymentInfo,
+  type PaymentMethod,
 } from '../services/data';
 import { findDepartment, findDoctor, findHospital, matchDepartment, type DemoDoctor, type Hospital, type Slot } from '../services/mock';
 import { addDays, formatTaka, MONTHS_SHORT, toIsoDate, toAsciiDigits, WEEKDAYS } from '../utils/format';
 import { goBack } from '../utils/navigation';
+import { clockTime, METHOD_ICON, METHOD_NAME_KEY } from '../utils/payment';
 
-const STEP_KEYS: TranslationKey[] = ['bkStepHospital', 'bkStepDepartment', 'bkStepDoctor', 'bkStepDate', 'bkStepPatient', 'bkStepReview'];
-const STEP = { hospital: 0, department: 1, doctor: 2, date: 3, patient: 4, review: 5 } as const;
+const STEP_KEYS: TranslationKey[] = ['bkStepHospital', 'bkStepDepartment', 'bkStepDoctor', 'bkStepDate', 'bkStepPatient', 'bkStepPayment', 'bkStepReview'];
+const STEP = { hospital: 0, department: 1, doctor: 2, date: 3, patient: 4, payment: 5, review: 6 } as const;
 const DAYS_AHEAD = 5;
 
 const GENDERS: { key: PatientInfo['gender']; label: TranslationKey }[] = [
@@ -33,6 +37,8 @@ const GENDERS: { key: PatientInfo['gender']; label: TranslationKey }[] = [
 ];
 
 type PatientFields = Omit<PatientInfo, 'forSelf'>;
+const PAYMENT_METHODS: PaymentMethod[] = ['cash_at_chamber', 'bkash', 'nagad', 'card'];
+
 const EMPTY_FIELDS: PatientFields = { name: '', age: '', gender: '', relation: '', phone: '' };
 
 function newIdempotencyKey() {
@@ -71,6 +77,9 @@ export default function BookingScreen() {
   });
   const [other, setOther] = useState<PatientFields>(EMPTY_FIELDS);
   const [reason, setReason] = useState('');
+  const [payMethod, setPayMethod] = useState<PaymentMethod>('cash_at_chamber');
+  const [paid, setPaid] = useState<PaymentInfo | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -177,10 +186,25 @@ export default function BookingScreen() {
     setStep(STEP.date);
   }
 
+  const fee = doctor?.fee ?? 0;
+  const needsOnlinePayment = payMethod !== 'cash_at_chamber' && paid?.method !== payMethod;
+  const payment: PaymentInfo = payMethod === 'cash_at_chamber' || !paid
+    ? { method: 'cash_at_chamber', status: 'pay_at_chamber', amount: fee }
+    : paid;
+
+  function choosePayMethod(method: PaymentMethod) {
+    setPayMethod(method);
+    if (paid && paid.method !== method) setPaid(null);
+  }
+
   function next() {
     if (step === STEP.patient) {
       setTouched(true);
       if (!patientOk) return;
+    }
+    if (step === STEP.payment && needsOnlinePayment) {
+      setSheetOpen(true);
+      return;
     }
     setStep((current) => Math.min(STEP.review, current + 1));
   }
@@ -201,6 +225,7 @@ export default function BookingScreen() {
         time,
         patient: { forSelf, ...fields, relation: forSelf ? '' : fields.relation.trim(), name: fields.name.trim() },
         reason: reason.trim(),
+        payment,
         idempotencyKey: idempotencyKey.current,
       });
       queue.bookSerial({ doctorId: doctor.id, serial: appointment.serial });
@@ -214,6 +239,12 @@ export default function BookingScreen() {
   const footer =
     step === STEP.date ? <ActionButton label={t('bkNext')} onPress={next} disabled={!time} />
     : step === STEP.patient ? <ActionButton label={t('bkNext')} onPress={next} />
+    : step === STEP.payment ? (
+      <ActionButton
+        label={needsOnlinePayment ? t('payNext').replace('{amount}', nf(formatTaka(fee))) : t('bkNext')}
+        onPress={next}
+      />
+    )
     : step === STEP.review ? (
       <ActionButton label={submitting ? '…' : t('confirmBooking')} onPress={confirmBooking} disabled={submitting} />
     ) : undefined;
@@ -438,6 +469,33 @@ export default function BookingScreen() {
         </>
       )}
 
+      {step === STEP.payment && doctor && (
+        <>
+          <BiText text={L('payTitle')} style={styles.sectionTitle} />
+          <Card style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <BiText text={L('consultationFee')} style={styles.meta} />
+              <AppText style={styles.fee}>{nf(formatTaka(fee))}</AppText>
+            </View>
+          </Card>
+          {PAYMENT_METHODS.map((method) => (
+            <Option key={method} selected={payMethod === method} onPress={() => choosePayMethod(method)}>
+              <View style={styles.optionIcon}><Ionicons name={METHOD_ICON[method]} size={22} color={colors.brand} /></View>
+              <View style={styles.flex}>
+                <AppText style={styles.optionTitle}>{t(METHOD_NAME_KEY[method])}</AppText>
+                <AppText style={styles.meta}>
+                  {t(method === 'cash_at_chamber' ? 'payCashHint' : 'payOnlineHint').replace('{amount}', nf(formatTaka(fee)))}
+                </AppText>
+              </View>
+              {paid?.method === method ? <Ionicons name="checkmark-circle" size={20} color={colors.brand} /> : null}
+            </Option>
+          ))}
+          <View style={styles.warn}>
+            <BiText text={L('payDemoBanner')} style={styles.warnText} />
+          </View>
+        </>
+      )}
+
       {step === STEP.review && doctor && hospital && (
         <>
           <BiText text={L('bkReviewTitle')} style={styles.sectionTitle} />
@@ -455,8 +513,24 @@ export default function BookingScreen() {
           <Card style={styles.review}>
             <View style={styles.summaryRow}>
               <BiText text={L('payment')} style={styles.meta} />
-              <AppText style={styles.summaryValue}>{t('cashAtChamber')}</AppText>
+              <AppText style={styles.summaryValue}>
+                {payment.status === 'paid'
+                  ? t('payPaidVia').replace('{method}', t(METHOD_NAME_KEY[payment.method]))
+                  : t('cashAtChamber')}
+              </AppText>
             </View>
+            {payment.status === 'paid' ? (
+              <>
+                <View style={styles.summaryRow}>
+                  <AppText style={styles.meta}>{t('payTxn')}</AppText>
+                  <AppText style={styles.summaryValue}>{payment.transactionId}</AppText>
+                </View>
+                <View style={styles.summaryRow}>
+                  <AppText style={styles.meta}>{t('payTime')}</AppText>
+                  <AppText style={styles.summaryValue}>{nf(clockTime(payment.paidAt ?? new Date().toISOString()))}</AppText>
+                </View>
+              </>
+            ) : null}
             <View style={styles.summaryRow}>
               <BiText text={L('total')} style={styles.meta} />
               <AppText style={styles.fee}>{nf(formatTaka(doctor.fee))}</AppText>
@@ -465,6 +539,19 @@ export default function BookingScreen() {
           {error ? <Card style={styles.errorCard}><AppText style={styles.errorText}>{error}</AppText></Card> : null}
         </>
       )}
+      {sheetOpen && payMethod !== 'cash_at_chamber' ? (
+        <PaymentSheet
+          visible={sheetOpen}
+          method={payMethod}
+          amount={fee}
+          onClose={() => setSheetOpen(false)}
+          onPaid={(result) => {
+            setPaid(result);
+            setSheetOpen(false);
+            setStep(STEP.review);
+          }}
+        />
+      ) : null}
     </AppScreen>
   );
 }

@@ -1,7 +1,8 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { callNextPatient, checkInAppointment, isBackendConfigured, markNoShow, restoreAppointment, type QueueResponse } from '../services/api';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { callNextPatient, checkInAppointment, isBackendConfigured, markNoShow, restoreAppointment, type PaymentInfo, type QueueResponse } from '../services/api';
 import { setOffline } from '../services/connection';
-import { DEMO_QUEUE, DemoQueuePatient, Localized } from '../services/mock';
+import { getMyAppointments, subscribeAppointments } from '../services/data';
+import { DEMO, DEMO_QUEUE, DemoQueuePatient, Localized } from '../services/mock';
 import { useQueue } from './QueueContext';
 
 /**
@@ -13,12 +14,14 @@ export type VisitStatus = 'done' | 'serving' | 'waiting' | 'notArrived' | 'noSho
 
 export type DeskPatient = DemoQueuePatient & {
   appointmentId?: string;
+  /** Demo payment: status "paid" means no cash needs collecting at the desk. */
+  payment: PaymentInfo;
   walkIn: boolean;
   noShow: boolean;
   status: VisitStatus;
 };
 
-type Entry = DemoQueuePatient & { walkIn: boolean; noShow: boolean; done: boolean; appointmentId?: string };
+type Entry = DemoQueuePatient & { payment?: PaymentInfo; walkIn: boolean; noShow: boolean; done: boolean; appointmentId?: string };
 
 type DeskContextValue = {
   patients: DeskPatient[];
@@ -43,6 +46,13 @@ const initialEntries: Entry[] = DEMO_QUEUE.map((patient) => ({ ...patient, walkI
 export function DeskProvider({ children }: React.PropsWithChildren) {
   const queue = useQueue();
   const [entries, setEntries] = useState<Entry[]>(initialEntries);
+  // Demo mode: the patient's own booking (#17) carries the payment chosen in the booking wizard.
+  const [myPayment, setMyPayment] = useState<PaymentInfo | undefined>();
+  useEffect(() => {
+    const load = () => { getMyAppointments().then((list) => setMyPayment(list[0]?.payment)); };
+    load();
+    return subscribeAppointments(load);
+  }, []);
   const { nowServing, callNext: queueCallNext, remote, applyRemote, refresh } = queue;
 
   // Backend queue (when reachable) + local walk-ins; otherwise the local demo list.
@@ -60,6 +70,12 @@ export function DeskProvider({ children }: React.PropsWithChildren) {
       noShow: item.noShow,
       done: doneLocally.has(item.serialNumber),
       appointmentId: item.appointmentId,
+      payment: {
+        method: item.paymentMethod ?? 'cash_at_chamber',
+        status: item.paymentStatus ?? 'pay_at_chamber',
+        transactionId: item.transactionId ?? undefined,
+        amount: item.amount ?? DEMO.fee,
+      },
     }));
     return [...fromServer, ...entries.filter((e) => e.walkIn)];
   }, [remote, entries]);
@@ -73,10 +89,14 @@ export function DeskProvider({ children }: React.PropsWithChildren) {
           else if (entry.done || entry.serial < nowServing) status = 'done';
           else if (entry.serial === nowServing) status = 'serving';
           else status = entry.checkedIn ? 'waiting' : 'notArrived';
-          return { ...entry, status };
+          const payment: PaymentInfo = entry.payment
+            ?? (entry.serial === queue.serial && myPayment
+              ? myPayment
+              : { method: 'cash_at_chamber', status: 'pay_at_chamber', amount: DEMO.fee });
+          return { ...entry, payment, status };
         })
         .sort((a, b) => a.serial - b.serial),
-    [baseEntries, nowServing],
+    [baseEntries, nowServing, queue.serial, myPayment],
   );
 
   const serving = patients.find((p) => p.status === 'serving') ?? null;
@@ -137,7 +157,7 @@ export function DeskProvider({ children }: React.PropsWithChildren) {
       const summary: Localized = { en: reason || 'Walk-in visit', bn: reason || 'ওয়াক-ইন ভিজিট' };
       const entry: Entry = { serial, name: label, phone, age, summary, checkedIn: true, walkIn: true, noShow: false, done: false };
       setEntries((current) => [...current, entry]);
-      return { ...entry, status: 'waiting' as const };
+      return { ...entry, payment: { method: 'cash_at_chamber' as const, status: 'pay_at_chamber' as const, amount: DEMO.fee }, status: 'waiting' as const };
     },
     [baseEntries],
   );

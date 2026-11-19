@@ -10,7 +10,8 @@ import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
 import { getMyAppointments, type Appointment } from '../../services/data';
 import { DEMO, findDepartment, findDoctor, findHospital, timeLabel, type Localized } from '../../services/mock';
-import { MONTHS_SHORT, WEEKDAYS } from '../../utils/format';
+import { formatTaka, MONTHS_SHORT, WEEKDAYS } from '../../utils/format';
+import { METHOD_NAME_KEY } from '../../utils/payment';
 
 type StepState = 'done' | 'current' | 'upcoming';
 
@@ -158,6 +159,17 @@ export default function SerialsScreen() {
             </View>
             <AppText style={styles.apptWhen}>{when}</AppText>
             {patientName ? <AppText style={styles.meta}>{patientName}</AppText> : null}
+            {appointment.payment?.status === 'paid' ? (
+              <View style={styles.paidRow}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.brand} />
+                <AppText style={styles.paidText}>
+                  {t('payPaidVia').replace('{method}', t(METHOD_NAME_KEY[appointment.payment.method]))}
+                  {appointment.payment.transactionId ? ` · ${appointment.payment.transactionId}` : ''}
+                </AppText>
+              </View>
+            ) : (
+              <AppText style={styles.meta}>{tf('payAtChamber', { amount: formatTaka(appointment.payment?.amount ?? appointment.fee) })}</AppText>
+            )}
           </Card>
         );
       })}
@@ -207,6 +219,8 @@ const styles = StyleSheet.create({
   infoCard: { gap: 6 },
   listTitle: { color: colors.text, fontSize: 16, lineHeight: 24, fontWeight: '700', marginTop: 4 },
   apptCard: { gap: 6 },
+  paidRow: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', backgroundColor: colors.mint2, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  paidText: { color: colors.brand, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   apptTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   apptDoctor: { color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
   apptSerial: { borderRadius: 12, backgroundColor: colors.brandSoft, paddingHorizontal: 12, paddingVertical: 6 },
