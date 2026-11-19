@@ -4,6 +4,15 @@ The mobile app keeps clinical data and AI credentials on the server. Configure
 `EXPO_PUBLIC_API_URL` to point to a trusted HTTPS API; never put model-provider
 keys or privileged credentials in an Expo public environment variable.
 
+The initial PostgreSQL data model is documented in
+[`docs/postgres-schema.sql`](./postgres-schema.sql). It covers users and
+role-scoped hospital access, doctor chambers, transactional appointments and
+queues, symptom-triage consent and sources, consultations and prescriptions,
+pharmacy reservations, lab reports, recovery check-ins, journey events, and
+audit logging. Production endpoints should enforce row ownership and hospital
+membership in the API layer (and may add PostgreSQL row-level security once
+the authentication claims-to-database role mapping is finalized).
+
 The API client in `src/services/api.ts` is the integration boundary. Register an
 authenticated session-token provider with `setAccessTokenProvider` when the
 identity service is chosen.
