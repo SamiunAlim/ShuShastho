@@ -40,6 +40,7 @@ function AppStack() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="assistant" />
           <Stack.Screen name="booking" />
+          <Stack.Screen name="edit-profile" />
           <Stack.Screen name="emergency" />
           <Stack.Screen name="prescription" />
           <Stack.Screen name="report" />

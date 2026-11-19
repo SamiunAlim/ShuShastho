@@ -15,7 +15,7 @@ import { useLanguage } from '../context/LanguageContext';
 import colors from '../constants/colors';
 import { ApiError, isBackendConfigured, RiskLevel, sendSymptomMessage } from '../services/api';
 import { setOffline, useOffline } from '../services/connection';
-import { delay, mockAssistantReply } from '../services/mock';
+import { delay, matchDepartment, mockAssistantReply } from '../services/mock';
 import { TranslationKey } from '../constants/i18n';
 import { call999 } from '../utils/emergency';
 import { goBack } from '../utils/navigation';
@@ -216,7 +216,11 @@ function ChatBubble({ message }: { message: Message }) {
           </View>
         ) : null}
         {showBooking ? (
-          <ActionButton label={t('bookSpecialist')} onPress={() => router.push('/(tabs)/doctors')} variant="secondary" />
+          <ActionButton
+            label={t('bookSpecialist')}
+            onPress={() => router.push({ pathname: '/booking', params: { department: matchDepartment(specialty) ?? '' } })}
+            variant="secondary"
+          />
         ) : null}
         {isAssistant && message.id !== 'welcome' ? (
           <AppText style={styles.notSubstitute}>{t('notSubstitute')}</AppText>

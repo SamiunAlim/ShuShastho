@@ -29,6 +29,7 @@ export const WEB_ONLY_ROLES: readonly Role[] = ['hospitalAdmin', 'superAdmin'];
 export const VISIBLE_ROLES: readonly Role[] = ROLES.filter((role) => Platform.OS === 'web' || !WEB_ONLY_ROLES.includes(role));
 
 export type { Profile };
+export { EMPTY_PROFILE } from '../services/data';
 
 export type Session = {
   role: Role;

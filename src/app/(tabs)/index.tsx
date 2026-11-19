@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader, SectionTitle } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
@@ -14,6 +15,8 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export default function HomeScreen() {
   const { language, t, tf, nf, L } = useLanguage();
   const queue = useQueue();
+  const { profile } = useAuth();
+  const firstName = profile?.name.trim().split(/\s+/)[0] ?? '';
   const doctor = findDoctor(queue.doctorId);
   const weekday = WEEKDAYS[language][new Date().getDay()];
 
@@ -23,7 +26,7 @@ export default function HomeScreen() {
         <ScreenHeader brand>
           <View style={styles.greeting}>
             <AppText style={styles.eyebrow}>{weekday} · {t('dhaka')}</AppText>
-            <BiText text={L('greeting')} style={styles.greetingTitle} />
+            <BiText text={firstName ? L('greetingName', { name: firstName }) : L('greeting')} style={styles.greetingTitle} />
             <BiText text={L('greetingSubtitle')} style={styles.subtitle} />
           </View>
         </ScreenHeader>

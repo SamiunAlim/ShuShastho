@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { ActionButton, AppScreen, AppText, BiText, Card, DemoNotice, KanthaCard, ScreenHeader } from '../../components/ui';
 import { useQueuePoll } from '../../hooks/usePolling';
@@ -8,7 +8,9 @@ import { useJourney } from '../../context/JourneyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useQueue } from '../../context/QueueContext';
 import colors from '../../constants/colors';
-import { DEMO, findDoctor, findHospital, type Localized } from '../../services/mock';
+import { getMyAppointments, type Appointment } from '../../services/data';
+import { DEMO, findDepartment, findDoctor, findHospital, timeLabel, type Localized } from '../../services/mock';
+import { MONTHS_SHORT, WEEKDAYS } from '../../utils/format';
 
 type StepState = 'done' | 'current' | 'upcoming';
 
@@ -19,6 +21,15 @@ export default function SerialsScreen() {
   const doctor = findDoctor(queue.doctorId);
   const journey = useJourney();
   const [consulting, setConsulting] = useState(false);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  // Reload the list whenever the tab is shown (e.g. right after booking).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getMyAppointments().then((list) => active && setAppointments(list));
+      return () => { active = false; };
+    }, []),
+  );
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
@@ -122,6 +133,34 @@ export default function SerialsScreen() {
         <BiText text={L('checkInTitle')} style={styles.infoTitle} />
         <AppText style={styles.meta}>{t('checkInDescription')}</AppText>
       </Card>
+
+      <BiText text={L('bkMyAppointments')} style={styles.listTitle} />
+      {appointments.length === 0 ? <AppText style={styles.meta}>{t('bkNoAppointments')}</AppText> : null}
+      {appointments.map((appointment) => {
+        const apptDoctor = findDoctor(appointment.doctorId);
+        const [y, m, d] = appointment.date.split('-').map(Number);
+        const when = `${WEEKDAYS[language][new Date(y, m - 1, d).getDay()]}, ${nf(d)} ${MONTHS_SHORT[language][m - 1]} · ${timeLabel(appointment.time)[language]}`;
+        const patientName = appointment.patient.forSelf
+          ? null
+          : tf('apptFor', { name: appointment.patient.name });
+        return (
+          <Card key={appointment.id} style={styles.apptCard}>
+            <View style={styles.apptTop}>
+              <View style={styles.flex}>
+                <AppText style={styles.apptDoctor}>{apptDoctor.name[language]}</AppText>
+                <AppText style={styles.meta}>
+                  {findDepartment(appointment.departmentId)?.name[language]} · {findHospital(appointment.hospitalId).name[language]}
+                </AppText>
+              </View>
+              <View style={styles.apptSerial}>
+                <AppText style={styles.apptSerialText}>#{nf(appointment.serial)}</AppText>
+              </View>
+            </View>
+            <AppText style={styles.apptWhen}>{when}</AppText>
+            {patientName ? <AppText style={styles.meta}>{patientName}</AppText> : null}
+          </Card>
+        );
+      })}
     </AppScreen>
   );
 }
@@ -166,5 +205,12 @@ const styles = StyleSheet.create({
   notice: { backgroundColor: colors.yellow, padding: 11, borderRadius: 12 },
   noticeText: { color: colors.yellowText, fontSize: 11, lineHeight: 17 },
   infoCard: { gap: 6 },
+  listTitle: { color: colors.text, fontSize: 16, lineHeight: 24, fontWeight: '700', marginTop: 4 },
+  apptCard: { gap: 6 },
+  apptTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  apptDoctor: { color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  apptSerial: { borderRadius: 12, backgroundColor: colors.brandSoft, paddingHorizontal: 12, paddingVertical: 6 },
+  apptSerialText: { color: colors.brand, fontSize: 16, fontWeight: '700' },
+  apptWhen: { color: colors.brand, fontSize: 13, lineHeight: 20, fontWeight: '600' },
   infoTitle: { color: colors.text, fontSize: 15, lineHeight: 23, fontWeight: '700' },
 });
