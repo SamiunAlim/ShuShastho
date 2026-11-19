@@ -1,5 +1,6 @@
 {
   "expo": {
+    "web": { "output": "single", "bundler": "metro" },
     "name": "ShuShastho",
     "slug": "ShuShastho",
     "scheme": "shushastho",
