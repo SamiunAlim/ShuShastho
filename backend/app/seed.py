@@ -66,7 +66,8 @@ def queue_docs() -> list[dict]:
             "chamberId": "dhaka-medicare-hospital-dhanmondi",
             "serialNumber": serial, "patientName": {"en": en, "bn": bn}, "phone": phone, "age": age,
             "summary": {"en": s_en, "bn": s_bn}, "checkedIn": checked, "noShow": False,
-            "status": "waiting", "paymentMethod": "cash_at_chamber",
+            "paymentMethod": "cash_at_chamber",
+            **({"demoSlot": True} if serial == 17 else {}),
         }
         for serial, en, bn, phone, age, checked, s_en, s_bn in _PATIENTS
     ]
