@@ -157,7 +157,7 @@ export function BrandHeader({ showLanguage = true }: { showLanguage?: boolean })
           onPress={toggleLanguage}
           style={styles.languageButton}
         >
-          <AppText style={styles.languageButtonText}>{language === 'en' ? 'বাং' : 'EN'}</AppText>
+          <AppText style={styles.languageButtonText}>{language === 'en' ? 'বাংলা' : 'EN'}</AppText>
         </Pressable>
       )}
     </View>
@@ -186,7 +186,7 @@ export function LanguagePill() {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={t('switchLanguage')} onPress={toggleLanguage} style={styles.pill}>
       <View style={[styles.pillHalf, language === 'bn' && styles.pillHalfActive]}>
-        <AppText style={[styles.pillText, language === 'bn' && styles.pillTextActive]}>বাং</AppText>
+        <AppText style={[styles.pillText, language === 'bn' && styles.pillTextActive]}>বাংলা</AppText>
       </View>
       <View style={[styles.pillHalf, language === 'en' && styles.pillHalfActive]}>
         <AppText style={[styles.pillText, language === 'en' && styles.pillTextActive]}>EN</AppText>
